@@ -1,0 +1,7 @@
+{
+  "recommend_connection": ["feed", "trending"],
+  "start_conversation": ["chat"],
+  "join_group": ["community"],
+  "share_content": ["feed", "profile"],
+  "search_discovery": ["search"]
+}

@@ -1,0 +1,15 @@
+{
+  "intent_type": "recommend_connection",
+  "actor": "system",
+  "subject_user": "user_A",
+  "target_user": "user_B",
+  "signals": {
+    "mutual_connections": 0,
+    "shared_interests": ["ai"],
+    "profile_similarity": 0.42
+  },
+  "confidence": 0.55,
+  "historical_exposures": 3,
+  "surface": "discovery_page",
+  "timestamp": "2025-01-30T11:30:00Z"
+}

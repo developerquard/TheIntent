@@ -1,0 +1,3 @@
+[install]
+# Keep install behavior predictable for the standard dependency set.
+minimumReleaseAge = 86400

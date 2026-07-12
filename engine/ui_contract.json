@@ -1,0 +1,15 @@
+{
+  "rules": [
+    "UI must never display suppressed intents",
+    "UI must not infer or guess intent state",
+    "Every visible card must map to one evaluated intent",
+    "Risk flags are never shown to end users",
+    "UI may only show confidence, not policy logic"
+  ],
+  "allowed_states": {
+    "ALLOW": "visible",
+    "FLAG": "visible_with_indicator",
+    "SOFT_BLOCK": "hidden",
+    "HARD_BLOCK": "hidden_and_logged"
+  }
+}

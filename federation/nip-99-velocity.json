@@ -1,0 +1,21 @@
+{
+  "nip": 99,
+  "title": "Velocity Signals for Federation",
+  "summary": "Embed rate/decay signals in events for abuse gating.",
+  "tags": ["velocity", "abuse", "federation"],
+  "authors": ["socialdiscovery"],
+  "event_kinds": [1, 7, 18],  // notes, reactions, zaps
+  "event_properties": {
+    "tags": [
+      {
+        "name": "velocity",
+        "type": "signal",
+        "values": [
+          { "name": "rate", "type": "float", "description": "Events/hour" },
+          { "name": "decay", "type": "float", "description": "Time-decayed score" },
+          { "name": "warmup", "type": "boolean" }
+        ]
+      }
+    ]
+  }
+}

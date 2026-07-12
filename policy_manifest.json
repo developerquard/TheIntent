@@ -1,0 +1,9 @@
+{
+  "policy_version": "sd-v0.2",
+  "policies": [
+    "LOW_CONFIDENCE_RECOMMENDATION",
+    "REPEATED_EXPOSURE_RISK",
+    "WEAK_SOCIAL_SIGNAL_LEAP"
+  ],
+  "mode": "SHADOW"
+}

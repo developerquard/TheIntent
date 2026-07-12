@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "app.socialdiscovery.velocity.signal",
+  "type": "record",
+  "description": "Velocity signal for abuse detection",
+  "record": {
+    "type": "object",
+    "required": ["type", "signals"],
+    "properties": {
+      "type": { "type": "string", "enum": ["like", "repost", "follow"] },
+      "signals": {
+        "type": "object",
+        "properties": {
+          "velocity": { "type": "float", "description": "Rate of change (e.g., likes/hour)" },
+          "decay": { "type": "float", "description": "Time-decayed score" },
+          "warmup_phase": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

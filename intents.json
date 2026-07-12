@@ -1,0 +1,24 @@
+[
+  {
+    "intent_type": "recommend_connection",
+    "actor": "system",
+    "subject_user": "user_A",
+    "target_user": "user_X",
+    "confidence": 0.9,
+    "historical_exposures": 0,
+    "signals": { "mutual_connections": 3, "profile_similarity": 0.9 },
+    "surface": "trending",
+    "timestamp": "2025-01-30T12:00:00Z"
+  },
+  {
+    "intent_type": "recommend_connection",
+    "actor": "system",
+    "subject_user": "user_B",
+    "target_user": "user_X",
+    "confidence": 0.88,
+    "historical_exposures": 0,
+    "signals": { "mutual_connections": 2, "profile_similarity": 0.87 },
+    "surface": "trending",
+    "timestamp": "2025-01-30T12:01:00Z"
+  }
+]

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Social Discovery</title>
+</head>
+<body>
+  <h2>Live Moment</h2>
+  <input id="msg" placeholder="Type..." />
+  <button onclick="send()">Send</button>
+  <ul id="chat"></ul>
+
+<script>
+const momentId = prompt("Enter moment_id");
+const ws = new WebSocket("ws://127.0.0.1:8000/ws/room/" + momentId);
+
+ws.onmessage = (e) => {
+  const li = document.createElement("li");
+  li.innerText = e.data;
+  document.getElementById("chat").appendChild(li);
+};
+
+function send() {
+  ws.send(document.getElementById("msg").value);
+}
+</script>
+</body>
+</html>

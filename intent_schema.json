@@ -1,0 +1,15 @@
+{
+  "required": [
+    "intent_type",
+    "actor",
+    "subject_user",
+    "confidence",
+    "timestamp"
+  ],
+  "optional": [
+    "target_user",
+    "signals",
+    "historical_exposures",
+    "surface"
+  ]
+}
