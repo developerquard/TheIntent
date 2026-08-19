@@ -92,9 +92,11 @@ ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.room_messages REPLICA IDENTITY FULL;
 ALTER TABLE public.rooms REPLICA IDENTITY FULL;
 ALTER TABLE public.intents REPLICA IDENTITY FULL;
+ALTER TABLE public.audit_logs REPLICA IDENTITY FULL;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.room_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.intents;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
 
 CREATE INDEX idx_intents_status ON public.intents (status, created_at DESC);
 CREATE INDEX idx_messages_room ON public.room_messages (room_id, created_at);

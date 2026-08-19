@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTheme } from "@/lib/use-theme";
+import { useAccessibility } from "@/lib/use-accessibility";
 
 /**
  * A full-viewport, pointer-events-none canvas that renders a grid of dots which
@@ -10,11 +11,12 @@ export function InteractiveBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
   const { resolved } = useTheme();
+  const { reduceBackgroundEffects } = useAccessibility();
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const glow = glowRef.current;
-    if (!canvas || !glow) return;
+    if (!canvas || !glow || reduceBackgroundEffects) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const cv = canvas;
@@ -96,20 +98,24 @@ export function InteractiveBackdrop() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseleave", onLeave);
     };
-  }, [resolved]);
+  }, [resolved, reduceBackgroundEffects]);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-      <div
-        ref={glowRef}
-        className="absolute h-[500px] w-[500px] rounded-full opacity-0 blur-[80px] transition-opacity duration-500"
-        style={{
-          background:
-            "radial-gradient(circle, color-mix(in oklab, var(--primary) 42%, transparent), transparent 62%)",
-          willChange: "transform",
-        }}
-      />
+      {!reduceBackgroundEffects && (
+        <>
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+          <div
+            ref={glowRef}
+            className="absolute h-[500px] w-[500px] rounded-full opacity-0 blur-[80px] transition-opacity duration-500"
+            style={{
+              background:
+                "radial-gradient(circle, color-mix(in oklab, var(--primary) 42%, transparent), transparent 62%)",
+              willChange: "transform",
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

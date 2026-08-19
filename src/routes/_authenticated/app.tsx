@@ -4,7 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, actorFromUser } from "@/lib/use-auth";
-import { declareIntent } from "@/lib/social.functions";
+import { useAccessibility } from "@/lib/use-accessibility.tsx";
+import {
+  declareIntent,
+  getCollaborationRooms,
+  createCollaborationRoom,
+  requestJoinRoom,
+} from "@/lib/social.functions";
 import { shortHash } from "@/lib/intent-engine";
 
 export const Route = createFileRoute("/_authenticated/app")({
@@ -24,11 +30,29 @@ type IntentRow = {
 function AppPage() {
   const navigate = useNavigate();
   const declare = useServerFn(declareIntent);
+  const getRooms = useServerFn(getCollaborationRooms);
+  const createRoom = useServerFn(createCollaborationRoom);
+  const requestJoin = useServerFn(requestJoinRoom);
   const { user } = useAuth();
   const actor = actorFromUser(user);
+  const { soundCues, customMatchSound } = useAccessibility();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [intents, setIntents] = useState<IntentRow[]>([]);
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [showCollaborationModal, setShowCollaborationModal] = useState(false);
+  const [collabRooms, setCollabRooms] = useState<any[]>([]);
+  const [intentHash, setIntentHash] = useState("");
+  const [modalStep, setModalStep] = useState<"options" | "join" | "create">("options");
+  const [maxMembers, setMaxMembers] = useState<2 | 4 | 6 | 8 | 10>(6);
+  const [joinMethod, setJoinMethod] = useState<"admin_approval" | "member_voting">("admin_approval");
+
+  const playMatchSound = useCallback(() => {
+    if (soundCues) {
+      const audio = customMatchSound ? new Audio(customMatchSound) : new Audio('/match-sound.mp3');
+      audio.play().catch(console.error);
+    }
+  }, [soundCues, customMatchSound]);
 
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
@@ -36,7 +60,7 @@ function AppPage() {
       .select("id, actor_id, actor_label, intent_text, intent_hash, status, created_at")
       .eq("status", "active")
       .order("created_at", { ascending: false })
-      .limit(30);
+      .limit(10);
     setIntents((data as IntentRow[]) ?? []);
   }, []);
 
@@ -66,14 +90,27 @@ function AppPage() {
       } else if (res.decision === "REVIEW") {
         toast.warning("REVIEW — intent too short to match. Add more detail.");
       } else if (res.matched && "roomId" in res) {
+        playMatchSound();
         toast.success(`Matched · ${res.topic} · similarity ${res.similarity}`);
         setText("");
         navigate({ to: "/rooms/$roomId", params: { roomId: res.roomId } });
         return;
       } else {
-        toast.success("Live — waiting for a matching intent.");
+        // Check for existing collaboration rooms
+        const { createHash } = await import("node:crypto");
+        const hash = createHash("sha256").update(text.toLowerCase()).digest("hex");
+        setIntentHash(hash);
+        
+        const roomsRes = await getRooms({ data: { intentHash: hash } });
+        if (roomsRes.rooms && roomsRes.rooms.length > 0) {
+          setCollabRooms(roomsRes.rooms);
+          setModalStep("options");
+          setShowCollaborationModal(true);
+        } else {
+          setModalStep("create");
+          setShowCollaborationModal(true);
+        }
       }
-      setText("");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err ?? "Unknown error");
       console.error("Declare intent failed:", err);
@@ -83,14 +120,75 @@ function AppPage() {
     }
   }
 
+  async function handleCreateRoom() {
+    const finalRoomName = text.trim().slice(0, 50) || "Collaboration Room";
+    if (!actor.id) return;
+    setBusy(true);
+    try {
+      const res = await createRoom({
+        data: {
+          actorId: actor.id,
+          actorLabel: actor.label,
+          text,
+          roomName: finalRoomName,
+          maxMembers,
+          joinMethod,
+        },
+      });
+      if (res.success) {
+        toast.success(`Collaboration room created: ${res.topic}`);
+        setShowCollaborationModal(false);
+        setText("");
+        navigate({ to: "/rooms/$roomId", params: { roomId: res.roomId } });
+      } else {
+        toast.error(res.reason || "Failed to create room");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err ?? "Unknown error");
+      toast.error(message || "Could not create room.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleJoinRoom(roomId: string) {
+    if (!actor.id) return;
+    setBusy(true);
+    try {
+      const res = await requestJoin({
+        data: {
+          roomId,
+          actorId: actor.id,
+          actorLabel: actor.label,
+        },
+      });
+      if (res.success) {
+        toast.success("Join request sent. Waiting for approval.");
+        setShowCollaborationModal(false);
+        setText("");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err ?? "Unknown error");
+      toast.error(message || "Could not request to join.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-10">
       <div className="animate-fade-in">
-        <p className="font-mono-label text-sm font-medium text-primary">intent engine · sd-v0.2</p>
-        <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">Declare an intent</h1>
-        <p className="mt-2 max-w-2xl text-muted-foreground">
-          One sentence about what you want to do right now. If someone else wants the same thing, you
-          land in a live room instantly.
+        <div className="flex items-center justify-between">
+          <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">What do you want to do today?</h1>
+          <button
+            onClick={() => setDeveloperMode(!developerMode)}
+            className="font-mono-label text-xs text-muted-foreground hover:text-primary"
+          >
+            {developerMode ? "dev: on" : "dev: off"}
+          </button>
+        </div>
+        <p className="mt-2 max-w-2xl text-base text-muted-foreground">
+          Meet people based on what you're trying to do right now—not what an algorithm thinks you want.
         </p>
       </div>
 
@@ -99,6 +197,25 @@ function AppPage() {
         className="animate-fade-in mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm"
         style={{ animationDelay: "60ms" }}
       >
+        <div className="mb-4 flex flex-wrap gap-2">
+          {[
+            "Build a startup",
+            "Learn Python",
+            "Gaming",
+            "Fitness",
+            "Networking",
+            "Travel"
+          ].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => setText(text ? `${text} ${chip}` : chip)}
+              className="rounded-full border border-input bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:border-primary hover:bg-accent"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             value={text}
@@ -110,14 +227,16 @@ function AppPage() {
           <button
             type="submit"
             disabled={busy}
-            className="rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-60"
+            className="rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-60"
           >
             {busy ? "Matching…" : "Declare"}
           </button>
         </div>
-        <p className="mt-3 font-mono-label text-xs text-muted-foreground">
-          policy-gated · declaring as {actor.label || "…"} · match threshold ≥ 0.34
-        </p>
+        {developerMode && (
+          <p className="mt-3 font-mono-label text-xs text-muted-foreground">
+            policy-gated · declaring as {actor.label || "…"} · match threshold ≥ 0.34
+          </p>
+        )}
       </form>
 
       <section className="mt-10">
@@ -128,7 +247,26 @@ function AppPage() {
         <ul className="mt-4 space-y-2">
           {intents.length === 0 && (
             <li className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
-              No live intents yet. Be the first to declare.
+              <p className="mb-4 text-sm">No live intents yet. Try one of these:</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  "Find a cofounder",
+                  "Practice Spanish",
+                  "Play football this evening",
+                  "Learn AI",
+                  "Hiking tomorrow",
+                  "Find investors"
+                ].map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => setText(example)}
+                    className="rounded-full border border-input bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:border-primary hover:bg-accent"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
             </li>
           )}
           {intents.map((i, idx) => (
@@ -141,7 +279,9 @@ function AppPage() {
             >
               <span className="font-mono-label text-sm text-muted-foreground">{i.actor_label}</span>
               <span className="flex-1 text-[15px] text-foreground">{i.intent_text}</span>
-              <span className="font-mono-label text-xs text-muted-foreground">{shortHash(i.intent_hash)}</span>
+              {developerMode && (
+                <span className="font-mono-label text-xs text-muted-foreground">{shortHash(i.intent_hash)}</span>
+              )}
             </li>
           ))}
         </ul>
@@ -152,6 +292,171 @@ function AppPage() {
           View your rooms →
         </Link>
       </section>
+
+      {/* Collaboration Modal */}
+      {showCollaborationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+            
+            {modalStep === "options" && (
+              <>
+                <h2 className="text-xl font-bold text-foreground">Collaboration</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Existing collaborations were found for your matching intent. How would you like to proceed?
+                </p>
+                <div className="mt-6 space-y-3">
+                  <button
+                    onClick={() => setModalStep("join")}
+                    className="w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-98 cursor-pointer"
+                  >
+                    Join Existing Collaboration
+                  </button>
+                  <button
+                    onClick={() => setModalStep("create")}
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm font-semibold text-foreground transition-all hover:bg-accent active:scale-98 cursor-pointer"
+                  >
+                    Create New Collaboration
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCollaborationModal(false);
+                      setText("");
+                    }}
+                    className="mt-2 w-full rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+
+            {modalStep === "join" && (
+              <>
+                <h2 className="text-xl font-bold text-foreground">Available Collaborations</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Select an active collaboration room matching your intent.
+                </p>
+                <div className="mt-4 max-h-60 overflow-y-auto space-y-3">
+                  {collabRooms.map((room) => (
+                    <div
+                      key={room.id}
+                      className="rounded-xl border border-border bg-background p-4 transition-all hover:border-primary/50"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground truncate">{room.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Members: {room.currentMembers}/{room.maxMembers}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleJoinRoom(room.id)}
+                          disabled={busy}
+                          className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 cursor-pointer"
+                        >
+                          Join
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={() => setModalStep("options")}
+                    className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCollaborationModal(false);
+                      setText("");
+                    }}
+                    className="flex-1 rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+
+            {modalStep === "create" && (
+              <>
+                <h2 className="text-xl font-bold text-foreground">Create Collaboration</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Start a new collaboration room based on your intent.
+                </p>
+                <div className="mt-5 space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground">Maximum Members</label>
+                    <div className="flex gap-2 mt-2">
+                      {[2, 4, 6, 8, 10].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setMaxMembers(num as 2 | 4 | 6 | 8 | 10)}
+                          className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition-all cursor-pointer ${
+                            maxMembers === num
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground border-border hover:bg-accent"
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground">Join Method</label>
+                    <div className="flex gap-2 mt-2">
+                      {[
+                        { id: "admin_approval", label: "Admin Approval" },
+                        { id: "member_voting", label: "Member Voting" }
+                      ].map((method) => (
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setJoinMethod(method.id as "admin_approval" | "member_voting")}
+                          className={`flex-1 rounded-xl py-2.5 text-sm font-semibold border transition-all cursor-pointer ${
+                            joinMethod === method.id
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground border-border hover:bg-accent"
+                          }`}
+                        >
+                          {method.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-8 flex gap-3">
+                  <button
+                    onClick={handleCreateRoom}
+                    disabled={busy}
+                    className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 cursor-pointer"
+                  >
+                    {busy ? "Creating..." : "Create Room"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (collabRooms.length > 0) {
+                        setModalStep("options");
+                      } else {
+                        setShowCollaborationModal(false);
+                        setText("");
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent cursor-pointer"
+                  >
+                    {collabRooms.length > 0 ? "Back" : "Cancel"}
+                  </button>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

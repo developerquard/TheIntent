@@ -56,6 +56,9 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data, error }) => {
@@ -71,6 +74,16 @@ function AuthPage() {
       void clearSupabaseAuthCache();
     });
   }, [navigate]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (countdown > 0) {
+      interval = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [countdown]);
 
   async function signInWithPassword(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -95,7 +108,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin + "/dashboard",
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: { display_name: name.trim() || email.split("@")[0] },
           },
         });
@@ -103,9 +116,12 @@ function AuthPage() {
         if (error) {
           const normalized = error.message.toLowerCase();
           if (normalized.includes("user already registered") || normalized.includes("already registered")) {
-            await signInWithPassword(email, password);
-            toast.success("Welcome back — your account is ready.");
-            navigate({ to: "/dashboard", replace: true });
+            await clearSupabaseAuthCache();
+            toast.success("Account already exists. Please sign in or request a new confirmation email.");
+            setMode("signin");
+            setPendingEmail(email);
+            setEmailSent(true);
+            setCountdown(30);
             return;
           }
 
@@ -113,17 +129,42 @@ function AuthPage() {
           throw error;
         }
 
-        if (data.user && !data.session) {
-          await clearSupabaseAuthCache();
-          toast.success("Account created. Please confirm your email before signing in.");
-          return;
-        }
-
-        toast.success("Account created — welcome in.");
+        // Email confirmation required - don't create session
+        await clearSupabaseAuthCache();
+        setEmailSent(true);
+        setPendingEmail(email);
+        setCountdown(30);
+        toast.success("Confirmation email sent! Check your inbox to activate your account.");
+        return;
       } else {
         await signInWithPassword(email, password);
       }
       navigate({ to: "/dashboard", replace: true });
+    } catch (err) {
+      toast.error(getAuthErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendConfirmationEmail() {
+    if (!pendingEmail || countdown > 0) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: pendingEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setCountdown(30);
+      toast.success("Confirmation email resent! Check your inbox.");
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
     } finally {
@@ -136,7 +177,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin + "/dashboard",
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) {
@@ -167,71 +208,107 @@ function AuthPage() {
         </Link>
 
         <div className="rounded-3xl border border-border bg-card p-7 shadow-lg">
-          <h1 className="text-2xl font-bold text-foreground">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "signin"
-              ? "Sign in to declare intents and land in live rooms."
-              : "One account. No feed, no followers — just intent."}
-          </p>
+          {emailSent ? (
+            <>
+              <h1 className="text-2xl font-bold text-foreground">Check your inbox</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                We've sent a confirmation email to <span className="font-semibold text-foreground">{pendingEmail}</span>.
+                Click the link in the email to activate your account.
+              </p>
 
-          <button
-            onClick={onGoogle}
-            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold text-foreground transition-all hover:bg-accent active:scale-[0.98]"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
+              <div className="mt-6 rounded-xl bg-accent/30 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Didn't receive the email? Check your spam folder or request a new one.
+                </p>
+                <button
+                  onClick={resendConfirmationEmail}
+                  disabled={busy || countdown > 0}
+                  className="mt-3 w-full rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {busy ? "Sending…" : countdown > 0 ? `Resend in ${countdown}s` : "Resend confirmation email"}
+                </button>
+              </div>
 
-          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> or {mode === "signin" ? "sign in" : "sign up"} with email
-            <span className="h-px flex-1 bg-border" />
-          </div>
+              <button
+                onClick={() => {
+                  setEmailSent(false);
+                  setPendingEmail("");
+                  setCountdown(0);
+                }}
+                className="mt-5 w-full text-sm text-muted-foreground hover:text-primary"
+              >
+                ← Back to sign in
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-foreground">
+                {mode === "signin" ? "Welcome back" : "Create your account"}
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {mode === "signin"
+                  ? "Sign in to declare intents and land in live rooms."
+                  : "One account. No feed, no followers — just intent."}
+              </p>
 
-          <form onSubmit={onSubmit} className="space-y-3">
-            {mode === "signup" && (
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Display name"
-                maxLength={24}
-                className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
-              />
-            )}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@email.com"
-              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              minLength={6}
-              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
-            />
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
-            >
-              {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
-            </button>
-          </form>
+              <button
+                onClick={onGoogle}
+                className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold text-foreground transition-all hover:bg-accent active:scale-[0.98]"
+              >
+                <GoogleIcon />
+                Continue with Google
+              </button>
 
-          <p className="mt-5 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
-            <button
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="font-semibold text-primary hover:underline"
-            >
-              {mode === "signin" ? "Create an account" : "Sign in"}
-            </button>
-          </p>
+              <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" /> or {mode === "signin" ? "sign in" : "sign up"} with email
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <form onSubmit={onSubmit} className="space-y-3">
+                {mode === "signup" && (
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Display name"
+                    maxLength={24}
+                    className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
+                  />
+                )}
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  minLength={6}
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
+                />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+                </button>
+              </form>
+
+              <p className="mt-5 text-center text-sm text-muted-foreground">
+                {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
+                <button
+                  onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  {mode === "signin" ? "Create an account" : "Sign in"}
+                </button>
+              </p>
+            </>
+          )}
         </div>
         <p className="mt-6 text-center font-mono-label text-xs text-muted-foreground">
           policy-gated · audit-chained · sd-v0.2

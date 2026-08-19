@@ -117,12 +117,11 @@ function DashboardPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
       <div className="animate-fade-in">
-        <p className="font-mono-label text-sm font-medium text-primary">welcome back</p>
         <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">
-          Hi {actor.label || "there"} 👋
+          What are you looking for today?
         </h1>
-        <p className="mt-2 text-muted-foreground">
-          Here's what's moving. Declare a new intent to open a live room.
+        <p className="mt-2 text-base text-muted-foreground">
+          Meet people based on what you're trying to do right now—not what an algorithm thinks you want.
         </p>
       </div>
 

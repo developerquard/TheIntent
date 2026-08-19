@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Monitor, Moon, Sun, Palette, Bell, Check } from "lucide-react";
-import { useState } from "react";
+import { Monitor, Moon, Sun, Palette, Bell, Check, Accessibility, Volume2, Upload, Play } from "lucide-react";
+import { useState, useRef } from "react";
 import { useTheme, type ThemePref } from "@/lib/use-theme";
 import { useAuth, actorFromUser } from "@/lib/use-auth";
+import { useAccessibility } from "@/lib/use-accessibility.tsx";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -19,8 +20,50 @@ function SettingsPage() {
   const { theme, resolved, setTheme } = useTheme();
   const { user } = useAuth();
   const actor = actorFromUser(user);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const [soundCues, setSoundCues] = useState(true);
+  const {
+    reduceMotion,
+    reduceBackgroundEffects,
+    soundCues,
+    customRingtone,
+    customMatchSound,
+    setReduceMotion,
+    setReduceBackgroundEffects,
+    setSoundCues,
+    setCustomRingtone,
+    setCustomMatchSound,
+  } = useAccessibility();
+  const ringtoneInputRef = useRef<HTMLInputElement>(null);
+  const matchSoundInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRingtoneUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCustomRingtone(url);
+    }
+  };
+
+  const handleMatchSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCustomMatchSound(url);
+    }
+  };
+
+  const playRingtone = () => {
+    if (customRingtone) {
+      const audio = new Audio(customRingtone);
+      audio.play();
+    }
+  };
+
+  const playMatchSound = () => {
+    if (customMatchSound) {
+      const audio = new Audio(customMatchSound);
+      audio.play();
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 md:px-10">
@@ -74,36 +117,118 @@ function SettingsPage() {
         </div>
       </section>
 
-      {/* Experience */}
+      {/* Accessibility */}
       <section
         className="animate-fade-in mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm"
         style={{ animationDelay: "120ms" }}
       >
         <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-bold text-foreground">Experience</h2>
+          <Accessibility className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-bold text-foreground">Accessibility</h2>
         </div>
 
         <div className="mt-4 divide-y divide-border">
           <ToggleRow
             title="Reduce motion"
-            desc="Calm the animated background and transitions."
+            desc="Reduce overall animations while keeping essential transitions."
             checked={reduceMotion}
             onChange={setReduceMotion}
           />
           <ToggleRow
+            title="Reduce background effects"
+            desc="Disable cursor effects and animated backgrounds completely."
+            checked={reduceBackgroundEffects}
+            onChange={setReduceBackgroundEffects}
+          />
+        </div>
+      </section>
+
+      {/* Sounds */}
+      <section
+        className="animate-fade-in mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm"
+        style={{ animationDelay: "180ms" }}
+      >
+        <div className="flex items-center gap-2">
+          <Volume2 className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-bold text-foreground">Sounds</h2>
+        </div>
+
+        <div className="mt-4 divide-y divide-border">
+          <ToggleRow
             title="Sound cues"
-            desc="Play a soft chime when a room matches."
+            desc="Play a soft sound when an intent is matched."
             checked={soundCues}
             onChange={setSoundCues}
           />
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div>
+            <p className="font-semibold text-foreground">Custom ringtone</p>
+            <p className="text-sm text-muted-foreground">Upload your personal ringtone for room calls.</p>
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                ref={ringtoneInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleRingtoneUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => ringtoneInputRef.current?.click()}
+                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+              >
+                <Upload className="h-4 w-4" />
+                Upload ringtone
+              </button>
+              {customRingtone && (
+                <button
+                  onClick={playRingtone}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+                >
+                  <Play className="h-4 w-4" />
+                  Preview
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground">Match sound</p>
+            <p className="text-sm text-muted-foreground">Upload a custom sound for intent matching.</p>
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                ref={matchSoundInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleMatchSoundUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => matchSoundInputRef.current?.click()}
+                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+              >
+                <Upload className="h-4 w-4" />
+                Upload match sound
+              </button>
+              {customMatchSound && (
+                <button
+                  onClick={playMatchSound}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+                >
+                  <Play className="h-4 w-4" />
+                  Preview
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Account */}
       <section
         className="animate-fade-in mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm"
-        style={{ animationDelay: "180ms" }}
+        style={{ animationDelay: "240ms" }}
       >
         <h2 className="text-lg font-bold text-foreground">Account</h2>
         <dl className="mt-4 space-y-3 text-sm">

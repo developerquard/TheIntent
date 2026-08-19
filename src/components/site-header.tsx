@@ -1,7 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Bell } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/use-auth";
 import { useTheme } from "@/lib/use-theme";
+import { useAccessibility } from "@/lib/use-accessibility.tsx";
+import { useState, useEffect, useRef } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { getNotifications, markNotificationRead, handleJoinRequest } from "@/lib/social.functions";
 
 function ThemeToggle() {
   const { resolved, setTheme } = useTheme();
@@ -14,6 +19,154 @@ function ThemeToggle() {
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
+  );
+}
+
+function NotificationBell() {
+  const { user } = useAuth();
+  const { soundCues, customMatchSound } = useAccessibility();
+  const getNotifs = useServerFn(getNotifications);
+  const markRead = useServerFn(markNotificationRead);
+  const runJoinRequest = useServerFn(handleJoinRequest);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const previousUnreadCount = useRef(0);
+
+  const handleAction = async (requestId: string, action: "approve" | "decline", notificationId: string) => {
+    try {
+      await runJoinRequest({ data: { requestId, actorId: user?.id || "", action } });
+      await handleMarkRead(notificationId);
+      toast.success(`Request ${action === "approve" ? "accepted" : "declined"} successfully`);
+      loadNotifications();
+    } catch (err) {
+      console.error(`Failed to ${action} request:`, err);
+      toast.error(err instanceof Error ? err.message : `Failed to ${action} request`);
+      // Fallback: mark notification read so it doesn't get stuck if already processed
+      await handleMarkRead(notificationId);
+      loadNotifications();
+    }
+  };
+
+  const playNotificationSound = () => {
+    if (soundCues) {
+      const audio = customMatchSound ? new Audio(customMatchSound) : new Audio('/match-sound.mp3');
+      audio.play().catch(console.error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await getNotifs({ data: { userId: user.id } });
+      const newNotifications = res.notifications;
+      const newUnreadCount = newNotifications.filter((n: any) => !n.is_read).length;
+      
+      // Play sound if unread count increased
+      if (newUnreadCount > previousUnreadCount.current && previousUnreadCount.current > 0) {
+        playNotificationSound();
+      }
+      
+      setNotifications(newNotifications);
+      setUnreadCount(newUnreadCount);
+      previousUnreadCount.current = newUnreadCount;
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  const handleMarkRead = async (notificationId: string) => {
+    try {
+      await markRead({ data: { notificationId } });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShowNotifications(!showNotifications)}
+        aria-label="Notifications"
+        className="relative rounded-xl border border-border p-2.5 text-foreground transition-all hover:bg-accent active:scale-95"
+      >
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {showNotifications && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowNotifications(false)}
+          />
+          <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-2xl border border-border bg-card p-4 shadow-lg">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Notifications</h3>
+            {notifications.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No notifications</p>
+            ) : (
+              <div className="max-h-96 space-y-2 overflow-y-auto">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`rounded-xl border p-3 transition-colors ${
+                      notif.is_read ? "border-border bg-background" : "border-primary bg-primary/5"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-foreground">{notif.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{notif.body}</p>
+                      </div>
+                      {notif.type === "join_request" && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAction(notif.related_id, "approve", notif.id)}
+                            className="rounded-lg bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleAction(notif.related_id, "decline", notif.id)}
+                            className="rounded-lg border border-border px-2 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {!notif.is_read && (
+                      <button
+                        onClick={() => handleMarkRead(notif.id)}
+                        className="mt-2 text-xs text-muted-foreground hover:text-primary"
+                      >
+                        Mark as read
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -39,6 +192,7 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-3">
           <ThemeToggle />
+          {user && <NotificationBell />}
           {!loading &&
             (user ? (
               <Link
