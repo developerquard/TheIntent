@@ -52,6 +52,12 @@ function getAuthErrorMessage(err: unknown) {
   return message;
 }
 
+function isEmailConfirmationRequired(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  const normalized = message.toLowerCase();
+  return normalized.includes("email not confirmed") || normalized.includes("confirm your email");
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -88,9 +94,31 @@ function AuthPage() {
     return () => clearInterval(interval);
   }, [countdown]);
 
+  async function sendConfirmationEmail(email: string) {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) throw error;
+
+    await clearSupabaseAuthCache();
+    setPendingEmail(email);
+    setEmailSent(true);
+    setCountdown(60);
+  }
+
   async function signInWithPassword(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      if (isEmailConfirmationRequired(error)) {
+        await sendConfirmationEmail(email);
+        toast.success("A fresh confirmation email has been sent. Check your inbox to activate your account.");
+        return null;
+      }
       await clearSupabaseAuthCache();
       throw error;
     }
@@ -124,21 +152,11 @@ function AuthPage() {
             normalized.includes("already registered")
           ) {
             // Automatically send fresh confirmation email for unconfirmed existing user
-            const { error: resendErr } = await supabase.auth.resend({
-              type: "signup",
-              email,
-              options: { emailRedirectTo: redirectUrl },
-            });
-
-            await clearSupabaseAuthCache();
-            setPendingEmail(email);
-            setEmailSent(true);
-            setCountdown(30);
-
-            if (resendErr) {
-              toast.error(getAuthErrorMessage(resendErr));
-            } else {
+            try {
+              await sendConfirmationEmail(email);
               toast.success("Confirmation email sent! Check your inbox to activate your account.");
+            } catch (resendErr) {
+              toast.error(getAuthErrorMessage(resendErr));
             }
             return;
           }
@@ -150,11 +168,7 @@ function AuthPage() {
         // Check if Supabase returned unconfirmed identity or session
         if (data.user && data.user.identities && data.user.identities.length === 0) {
           // User exists, trigger resend to ensure confirmation email is sent
-          await supabase.auth.resend({
-            type: "signup",
-            email,
-            options: { emailRedirectTo: redirectUrl },
-          });
+          await sendConfirmationEmail(email);
         }
 
         // Email confirmation required - clear local cached draft session
@@ -165,7 +179,8 @@ function AuthPage() {
         toast.success("Confirmation email sent! Check your inbox to activate your account.");
         return;
       } else {
-        await signInWithPassword(email, password);
+        const data = await signInWithPassword(email, password);
+        if (!data) return;
       }
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
@@ -179,19 +194,7 @@ function AuthPage() {
     if (!pendingEmail || countdown > 0) return;
     setBusy(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: pendingEmail,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setCountdown(30);
+      await sendConfirmationEmail(pendingEmail);
       toast.success("Confirmation email resent! Check your inbox.");
     } catch (err) {
       toast.error(getAuthErrorMessage(err));
