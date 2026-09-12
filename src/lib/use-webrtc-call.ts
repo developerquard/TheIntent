@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAccessibility } from "./use-accessibility";
 
 // Peer-to-peer WebRTC calling for an intent room.
 // Signaling rides on a Supabase Realtime broadcast channel (call-<roomId>),
@@ -31,7 +32,10 @@ function buildIceServers(): RTCIceServer[] {
   const turnUrl = import.meta.env.VITE_TURN_URL as string | undefined;
   if (turnUrl) {
     // Support comma-separated URLs (e.g. "turn:host:3478,turns:host:5349").
-    const urls = turnUrl.split(",").map((u) => u.trim()).filter(Boolean);
+    const urls = turnUrl
+      .split(",")
+      .map((u) => u.trim())
+      .filter(Boolean);
     servers.push({
       urls,
       username: (import.meta.env.VITE_TURN_USERNAME as string | undefined) || undefined,
@@ -56,6 +60,7 @@ export function useWebRTCCall(roomId: string, selfId: string) {
   const wantVideoRef = useRef(false);
   const politeRef = useRef(false);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+  const { customRingtone } = useAccessibility();
 
   // Play/stop the ringing tone based on call status.
   useEffect(() => {
@@ -63,7 +68,7 @@ export function useWebRTCCall(roomId: string, selfId: string) {
     const ringing = status === "calling" || status === "connecting";
     if (ringing) {
       if (!ringtoneRef.current) {
-        const audio = new Audio("/ringtone.mp3");
+        const audio = new Audio(customRingtone || "/ringtone.mp3");
         audio.loop = true;
         audio.volume = 0.6;
         ringtoneRef.current = audio;
@@ -75,7 +80,7 @@ export function useWebRTCCall(roomId: string, selfId: string) {
       ringtoneRef.current.pause();
       ringtoneRef.current.currentTime = 0;
     }
-  }, [status]);
+  }, [status, customRingtone]);
 
   // Stop the ringtone entirely on unmount.
   useEffect(() => {
@@ -85,13 +90,16 @@ export function useWebRTCCall(roomId: string, selfId: string) {
     };
   }, []);
 
-  const send = useCallback((payload: Omit<SignalPayload, "from">) => {
-    channelRef.current?.send({
-      type: "broadcast",
-      event: "signal",
-      payload: { ...payload, from: selfId } as SignalPayload,
-    });
-  }, [selfId]);
+  const send = useCallback(
+    (payload: Omit<SignalPayload, "from">) => {
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "signal",
+        payload: { ...payload, from: selfId } as SignalPayload,
+      });
+    },
+    [selfId],
+  );
 
   const attachRemote = useCallback(() => {
     if (remoteVideoRef.current && remoteStreamRef.current) {
@@ -99,21 +107,24 @@ export function useWebRTCCall(roomId: string, selfId: string) {
     }
   }, []);
 
-  const cleanup = useCallback((broadcastBye: boolean) => {
-    if (broadcastBye) send({ kind: "bye" });
-    pcRef.current?.getSenders().forEach((s) => s.track?.stop());
-    pcRef.current?.close();
-    pcRef.current = null;
-    localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    localStreamRef.current = null;
-    remoteStreamRef.current = null;
-    if (localVideoRef.current) localVideoRef.current.srcObject = null;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-    setStatus("idle");
-    setMuted(false);
-    setCameraOn(false);
-    setRemoteHasVideo(false);
-  }, [send]);
+  const cleanup = useCallback(
+    (broadcastBye: boolean) => {
+      if (broadcastBye) send({ kind: "bye" });
+      pcRef.current?.getSenders().forEach((s) => s.track?.stop());
+      pcRef.current?.close();
+      pcRef.current = null;
+      localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+      remoteStreamRef.current = null;
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      setStatus("idle");
+      setMuted(false);
+      setCameraOn(false);
+      setRemoteHasVideo(false);
+    },
+    [send],
+  );
 
   const createPeer = useCallback(() => {
     const pc = new RTCPeerConnection({ iceServers: buildIceServers() });
@@ -148,61 +159,67 @@ export function useWebRTCCall(roomId: string, selfId: string) {
   }, []);
 
   // Caller initiates.
-  const startCall = useCallback(async (video: boolean) => {
-    if (status !== "idle") return;
-    wantVideoRef.current = video;
-    politeRef.current = false;
-    setStatus("calling");
-    try {
-      const pc = createPeer();
-      const stream = await getLocalStream(video);
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      send({ kind: "offer", sdp: offer, video });
-      setStatus("connecting");
-    } catch {
-      cleanup(false);
-    }
-  }, [status, createPeer, getLocalStream, send, cleanup]);
-
-  const handleSignal = useCallback(async (msg: SignalPayload) => {
-    if (msg.from === selfId) return;
-    if (msg.to && msg.to !== selfId) return;
-
-    if (msg.kind === "bye") {
-      cleanup(false);
-      return;
-    }
-
-    if (msg.kind === "offer" && msg.sdp) {
-      // Callee (polite) answers.
-      politeRef.current = true;
-      wantVideoRef.current = !!msg.video;
-      setStatus("connecting");
-      const pc = pcRef.current ?? createPeer();
-      const stream = await getLocalStream(!!msg.video);
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      send({ kind: "answer", to: msg.from, sdp: answer });
-      return;
-    }
-
-    if (msg.kind === "answer" && msg.sdp && pcRef.current) {
-      await pcRef.current.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-      return;
-    }
-
-    if (msg.kind === "ice" && msg.candidate && pcRef.current) {
+  const startCall = useCallback(
+    async (video: boolean) => {
+      if (status !== "idle") return;
+      wantVideoRef.current = video;
+      politeRef.current = false;
+      setStatus("calling");
       try {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        const pc = createPeer();
+        const stream = await getLocalStream(video);
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        send({ kind: "offer", sdp: offer, video });
+        setStatus("connecting");
       } catch {
-        /* candidate may arrive before remote desc; ignore */
+        cleanup(false);
       }
-    }
-  }, [selfId, cleanup, createPeer, getLocalStream, send]);
+    },
+    [status, createPeer, getLocalStream, send, cleanup],
+  );
+
+  const handleSignal = useCallback(
+    async (msg: SignalPayload) => {
+      if (msg.from === selfId) return;
+      if (msg.to && msg.to !== selfId) return;
+
+      if (msg.kind === "bye") {
+        cleanup(false);
+        return;
+      }
+
+      if (msg.kind === "offer" && msg.sdp) {
+        // Callee (polite) answers.
+        politeRef.current = true;
+        wantVideoRef.current = !!msg.video;
+        setStatus("connecting");
+        const pc = pcRef.current ?? createPeer();
+        const stream = await getLocalStream(!!msg.video);
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        send({ kind: "answer", to: msg.from, sdp: answer });
+        return;
+      }
+
+      if (msg.kind === "answer" && msg.sdp && pcRef.current) {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+        return;
+      }
+
+      if (msg.kind === "ice" && msg.candidate && pcRef.current) {
+        try {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        } catch {
+          /* candidate may arrive before remote desc; ignore */
+        }
+      }
+    },
+    [selfId, cleanup, createPeer, getLocalStream, send],
+  );
 
   const endCall = useCallback(() => cleanup(true), [cleanup]);
 

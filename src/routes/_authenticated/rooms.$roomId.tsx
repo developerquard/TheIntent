@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, actorFromUser } from "@/lib/use-auth";
+import { useAccessibility } from "@/lib/use-accessibility";
 import { sendMessage, leaveRoom } from "@/lib/social.functions";
 import { shortHash } from "@/lib/intent-engine";
 import { CallPanel } from "@/components/call-panel";
@@ -39,6 +40,7 @@ function RoomPage() {
   const leave = useServerFn(leaveRoom);
   const { user } = useAuth();
   const actor = actorFromUser(user);
+  const { reduceMotion } = useAccessibility();
   const [room, setRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -69,7 +71,12 @@ function RoomPage() {
       .channel(`room-${roomId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${roomId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "room_messages",
+          filter: `room_id=eq.${roomId}`,
+        },
         () => loadMessages(),
       )
       .on(
@@ -84,8 +91,8 @@ function RoomPage() {
   }, [roomId, loadMessages, loadRoom]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+  }, [messages, reduceMotion]);
 
   const isMember = room?.member_ids.includes(actor.id) ?? false;
   const isOpen = room?.status === "open";
@@ -95,7 +102,9 @@ function RoomPage() {
     if (!draft.trim() || !room) return;
     setBusy(true);
     try {
-      await send({ data: { roomId, senderId: actor.id, senderLabel: actor.label, content: draft } });
+      await send({
+        data: { roomId, senderId: actor.id, senderLabel: actor.label, content: draft },
+      });
       setDraft("");
     } catch {
       toast.error("Message rejected.");
@@ -138,21 +147,22 @@ function RoomPage() {
               )}
             </div>
             <p className="mt-2 font-mono-label text-sm text-muted-foreground">
-              {room.member_labels.length} members · decision {isOpen ? "ALLOW" : "CLOSED"} · intent_hash{" "}
-              {shortHash(room.intent_hash)}
+              {room.member_labels.length} members · decision {isOpen ? "ALLOW" : "CLOSED"} ·
+              intent_hash {shortHash(room.intent_hash)}
               {room.match_similarity != null ? ` · similarity ${room.match_similarity}` : ""}
             </p>
           </div>
 
           {isOpen && <CallPanel roomId={roomId} selfId={actor.id} canCall={isMember} />}
 
-
-
           <div className="mt-6 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-border bg-card p-5">
             {messages.map((m) => {
               if (m.role === "system") {
                 return (
-                  <p key={m.id} className="text-center font-mono-label text-xs text-muted-foreground">
+                  <p
+                    key={m.id}
+                    className="text-center font-mono-label text-xs text-muted-foreground"
+                  >
                     {m.content}
                   </p>
                 );
@@ -162,10 +172,14 @@ function RoomPage() {
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[75%] animate-fade-in rounded-2xl px-4 py-2.5 ${
-                      mine ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                      mine
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
                     }`}
                   >
-                    {!mine && <p className="font-mono-label text-xs opacity-70">{m.sender_label}</p>}
+                    {!mine && (
+                      <p className="font-mono-label text-xs opacity-70">{m.sender_label}</p>
+                    )}
                     <p className="text-[15px]">{m.content}</p>
                   </div>
                 </div>

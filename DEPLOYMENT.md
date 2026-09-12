@@ -1,197 +1,130 @@
-# Production Deployment Guide - Hostinger KVM2 VPS
+# Deployment Guide
 
-## VPS Configuration Recommendations
+This project is built for a single-process Node deployment using PM2 as the main production runner. The app is served from the built output in `.output/` and listens on port `5173` by default.
 
-### Operating System
-- **Ubuntu 22.04 LTS** or **Ubuntu 24.04 LTS**
-  - Long-term support until 2027/2029
-  - Excellent Node.js ecosystem support
-  - Regular security updates
-  - Large community and documentation
+## Production architecture
 
-### Web Server
-- **Nginx** (recommended)
-  - High performance, low memory footprint
-  - Excellent reverse proxy capabilities
-  - Built-in SSL/TLS termination
-  - Static file serving with caching
-  - Superior to Apache for Node.js applications
-
-### Node.js Version
-- **Node.js 20.x LTS** (Current Long Term Support)
-  - Stable and well-tested
-  - Performance improvements over 18.x
-  - Security patches until April 2026
-  - Install via NodeSource for latest LTS
-
-### Process Manager
-- **PM2** (recommended)
-  - Automatic restarts on crashes
-  - Cluster mode for multi-core utilization
-  - Log management and rotation
-  - Zero-downtime reloads
-  - Startup script generation
-  - Better than systemd for Node.js apps
-
-### Firewall
-- **UFW** (Uncomplicated Firewall)
-  - Simple to configure
-  - Ubuntu default
-  - Blocks all incoming by default
-  - Easy port management
-
-### SSL Certificate
-- **Let's Encrypt** via Certbot
-  - Free, automated SSL/TLS certificates
-  - Auto-renewal configuration
-  - Trusted by all major browsers
-  - Industry standard for HTTPS
-
-### Deployment Architecture
-```
-Internet → Nginx (443/80) → Node.js App (5173) → Supabase
-                    ↓
-               SSL Termination
-               Static Files
-               Gzip Compression
-               Security Headers
+```text
+Internet
+  -> Nginx (SSL / reverse proxy)
+     -> 127.0.0.1:5173
+         -> Node server (`server-entry.js`)
+            -> built SSR app in `.output/`
+               -> Supabase auth / DB
 ```
 
-## Server Setup Commands
+## Required server setup
 
-### 1. Initial Server Setup
 ```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install essential packages
-sudo apt install -y curl git ufw nginx
-
-# Install Node.js 20.x LTS
+sudo apt update
+sudo apt install -y curl git ufw nginx ca-certificates
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
-
-# Install PM2 globally
 sudo npm install -g pm2
-
-# Install Certbot for SSL
-sudo apt install -y certbot python3-certbot-nginx
 ```
 
-### 2. Configure Firewall
-```bash
-# Allow SSH
-sudo ufw allow 22/tcp
+## Firewall
 
-# Allow HTTP/HTTPS
+```bash
+sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-
-# Enable firewall
 sudo ufw enable
-
-# Check status
-sudo ufw status
 ```
 
-### 3. Deploy Application
+## Project setup
+
 ```bash
-# Clone repository (or upload files)
-cd /var/www
-git clone <your-repo-url> socialdiscovery
-cd socialdiscovery
-
-# Install dependencies
+cd /var/www/the-intent
 npm install
-
-# Build application
+cp .env.example .env
 npm run build
-
-# Create logs directory
-mkdir -p logs
-
-# Start with PM2
-pm2 start ecosystem.config.js
-
-# Save PM2 configuration
+pm2 start ecosystem.config.cjs
 pm2 save
-
-# Generate startup script
 pm2 startup
 ```
 
-### 4. Configure Nginx
-```bash
-# Copy nginx config
-sudo cp nginx.conf /etc/nginx/sites-available/socialdiscovery
+## Nginx example
 
-# Replace your-domain.com with actual domain
-sudo nano /etc/nginx/sites-available/socialdiscovery
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+    return 301 https://$host$request_uri;
+}
 
-# Enable site
-sudo ln -s /etc/nginx/sites-available/socialdiscovery /etc/nginx/sites-enabled/
+server {
+    listen 443 ssl;
+    server_name your-domain.com www.your-domain.com;
 
-# Test configuration
-sudo nginx -t
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
-# Restart Nginx
-sudo systemctl restart nginx
+    location / {
+        proxy_pass http://127.0.0.1:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
 ```
 
-### 5. Setup SSL with Let's Encrypt
-```bash
-# Obtain SSL certificate
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+## HTTPS
 
-# Test auto-renewal
+```bash
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 sudo certbot renew --dry-run
 ```
 
-### 6. Environment Configuration
+## Environment variables
+
+Use a real `.env` file with these values:
+
 ```bash
-# Copy .env file
-cp .env.example .env
+NODE_ENV=production
+PORT=5173
+HOST=0.0.0.0
+NITRO_PRESET=node_server
 
-# Edit with production values
-nano .env
+DATABASE_URL=postgresql://...
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 
-# Important: Update APP_DOMAIN to your actual domain
-# APP_DOMAIN=https://your-domain.com
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=...
+VITE_SUPABASE_PROJECT_ID=your-project-id
+
+APP_DOMAIN=https://your-domain.com
 ```
 
-## Production Commands
+## PM2 management
 
-### Start/Stop/Restart
 ```bash
-# Start application
-pm2 start socialdiscovery
-
-# Stop application
-pm2 stop socialdiscovery
-
-# Restart application
-pm2 restart socialdiscovery
-
-# Reload (zero downtime)
-pm2 reload socialdiscovery
-```
-
-### Monitoring
-```bash
-# View logs
-pm2 logs socialdiscovery
-
-# Monitor status
+pm2 start ecosystem.config.cjs
+pm2 restart the-intent
+pm2 reload the-intent
+pm2 stop the-intent
+pm2 logs the-intent
 pm2 monit
+```
 
-# List all processes
-pm2 list
+## Important notes
 
-# Show details
-pm2 show socialdiscovery
+- Do not leave `APP_DOMAIN` as `https://localhost:5173` in production.
+- Add your production domain to Supabase Auth redirect allowlists.
+- Keep `.env` local and never commit it.
+- The app builds into `.output/` and is served by `server-entry.js`.
+- Optional direct-run scripts remain for local fallback, but PM2 is the primary deployment method.
+
 ```
 
 ### Updates
+
 ```bash
 # Pull latest changes
 git pull
@@ -202,8 +135,11 @@ npm install
 # Rebuild
 npm run build
 
-# Restart PM2
-pm2 restart socialdiscovery
+# Restart with PM2
+pm2 restart the-intent
+
+# Or restart with direct Node execution
+# Stop current process and run ./start-server.sh
 ```
 
 ## Security Best Practices
@@ -228,6 +164,7 @@ pm2 restart socialdiscovery
 ## Performance Optimization
 
 1. **PM2 Cluster Mode** (for multi-core servers)
+
    ```javascript
    // In ecosystem.config.js
    instances: 'max',
@@ -247,6 +184,7 @@ pm2 restart socialdiscovery
 ## Monitoring & Logging
 
 ### PM2 Monitoring
+
 ```bash
 # Install PM2 Plus (optional)
 pm2 plus
@@ -260,6 +198,7 @@ pm2 plus
 ```
 
 ### Log Rotation
+
 ```bash
 # Install logrotate
 sudo apt install logrotate
@@ -271,11 +210,13 @@ sudo nano /etc/logrotate.d/pm2-socialdiscovery
 ## Backup Strategy
 
 ### Database Backup (Supabase)
+
 - Use Supabase automated backups
 - Enable point-in-time recovery
 - Regular export of critical data
 
 ### Application Backup
+
 ```bash
 # Backup application files
 tar -czf socialdiscovery-backup-$(date +%Y%m%d).tar.gz /var/www/socialdiscovery
@@ -288,18 +229,24 @@ cp ~/.pm2/dump.pm2 ~/pm2-backup.pm2
 ## Troubleshooting
 
 ### Application won't start
+
 ```bash
 # Check PM2 logs
-pm2 logs socialdiscovery --lines 100
+pm2 logs the-intent --lines 100
 
 # Check if port is in use
 sudo netstat -tulpn | grep 5173
 
 # Check Node.js version
 node --version
+
+# Verify build exists
+ls -la .output/server/
+ls -la .output/client/
 ```
 
 ### Nginx 502 Bad Gateway
+
 ```bash
 # Check if Node.js app is running
 pm2 status
@@ -312,6 +259,7 @@ sudo systemctl restart nginx
 ```
 
 ### SSL Certificate Issues
+
 ```bash
 # Check certificate status
 sudo certbot certificates
@@ -326,12 +274,14 @@ sudo nginx -t
 ## Scaling Considerations
 
 ### When to upgrade from KVM2:
+
 - Consistent high CPU usage (>80%)
 - Memory pressure (swap usage)
 - Database connection limits
 - Need for horizontal scaling
 
 ### Scaling Options:
+
 1. **Vertical Scaling**: Upgrade to higher VPS tier
 2. **Horizontal Scaling**: Load balancer + multiple instances
 3. **Database**: Move to managed PostgreSQL if needed
@@ -339,11 +289,13 @@ sudo nginx -t
 ## Cost Optimization
 
 ### KVM2 Plan (2GB RAM, 1 CPU Core)
+
 - Suitable for: 100-500 concurrent users
 - Estimated monthly cost: $5-10
 - Monitor resource usage before upgrading
 
 ### Optimization Tips:
+
 - Enable PM2 cluster mode when upgrading CPU
 - Use CDN for static assets
 - Implement database query optimization
@@ -352,12 +304,65 @@ sudo nginx -t
 ## Support & Maintenance
 
 ### Regular Tasks:
+
 - Weekly: Check logs and metrics
 - Monthly: Security updates and dependency updates
 - Quarterly: Review and optimize performance
 - Annually: Review hosting costs and scaling needs
 
+## GitHub Actions Setup
+
+### Automated CI/CD Pipeline
+
+This project includes a GitHub Actions workflow that automatically deploys to your VPS when you push to the main branch.
+
+### Required GitHub Secrets
+
+Configure the following secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions > New repository secret`):
+
+- **SSH_HOST**: Your VPS IP address or domain name (e.g., `192.168.1.1` or `your-domain.com`)
+- **SSH_USERNAME**: Your SSH username (e.g., `root` or `ubuntu`)
+- **SSH_KEY**: Your private SSH key (the content of your `.pem` or `.key` file)
+- **SSH_PORT**: SSH port number (default: `22`)
+
+### How to Add SSH Key as Secret:
+
+1. Copy your private SSH key content:
+
+   ```bash
+   cat ~/.ssh/your_private_key.pem
+   ```
+
+2. Go to GitHub repository: `Settings > Secrets and variables > Actions > New repository secret`
+
+3. Name: `SSH_KEY`
+4. Value: Paste the entire private key content (including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----`)
+
+### Workflow File Location
+
+The GitHub Actions workflow is located at `.github/workflows/deploy.yml` and triggers on pushes to the `main` branch.
+
+### Deployment Script
+
+The automated deployment script is located at `scripts/deploy.sh` on the server. It performs:
+
+- `git pull origin main` - Pulls latest changes
+- `npm ci` - Installs dependencies
+- `npm run build` - Builds the application
+- `pm2 reload ecosystem.config.cjs --update-env` - Zero-downtime hot-reload
+
+### Manual Deployment
+
+If you need to deploy manually without GitHub Actions:
+
+```bash
+ssh your-user@your-vps-ip
+cd /var/www/socialdiscovery
+./scripts/deploy.sh
+```
+
 ### Emergency Contacts:
+
 - Hostinger Support: 24/7 live chat
 - Supabase Support: Community forums
 - Node.js: Documentation and community

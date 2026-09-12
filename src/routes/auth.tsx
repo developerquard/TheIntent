@@ -18,7 +18,10 @@ async function clearSupabaseAuthCache() {
 
   const clearStorage = (storage: Storage | null) => {
     if (!storage) return;
-    for (const key of Array.from({ length: storage.length }, (_, index) => storage.key(index) || "")) {
+    for (const key of Array.from(
+      { length: storage.length },
+      (_, index) => storage.key(index) || "",
+    )) {
       if (!key) continue;
       if (key.startsWith("sb-") || key.startsWith("supabase.auth.")) {
         storage.removeItem(key);
@@ -104,24 +107,39 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        const redirectUrl = `${window.location.origin}/auth/callback`;
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: redirectUrl,
             data: { display_name: name.trim() || email.split("@")[0] },
           },
         });
 
         if (error) {
           const normalized = error.message.toLowerCase();
-          if (normalized.includes("user already registered") || normalized.includes("already registered")) {
+          if (
+            normalized.includes("user already registered") ||
+            normalized.includes("already registered")
+          ) {
+            // Automatically send fresh confirmation email for unconfirmed existing user
+            const { error: resendErr } = await supabase.auth.resend({
+              type: "signup",
+              email,
+              options: { emailRedirectTo: redirectUrl },
+            });
+
             await clearSupabaseAuthCache();
-            toast.success("Account already exists. Please sign in or request a new confirmation email.");
-            setMode("signin");
             setPendingEmail(email);
             setEmailSent(true);
             setCountdown(30);
+
+            if (resendErr) {
+              toast.error(getAuthErrorMessage(resendErr));
+            } else {
+              toast.success("Confirmation email sent! Check your inbox to activate your account.");
+            }
             return;
           }
 
@@ -129,7 +147,17 @@ function AuthPage() {
           throw error;
         }
 
-        // Email confirmation required - don't create session
+        // Check if Supabase returned unconfirmed identity or session
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          // User exists, trigger resend to ensure confirmation email is sent
+          await supabase.auth.resend({
+            type: "signup",
+            email,
+            options: { emailRedirectTo: redirectUrl },
+          });
+        }
+
+        // Email confirmation required - clear local cached draft session
         await clearSupabaseAuthCache();
         setEmailSent(true);
         setPendingEmail(email);
@@ -152,7 +180,7 @@ function AuthPage() {
     setBusy(true);
     try {
       const { error } = await supabase.auth.resend({
-        type: 'signup',
+        type: "signup",
         email: pendingEmail,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -212,9 +240,29 @@ function AuthPage() {
             <>
               <h1 className="text-2xl font-bold text-foreground">Check your inbox</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                We've sent a confirmation email to <span className="font-semibold text-foreground">{pendingEmail}</span>.
-                Click the link in the email to activate your account.
+                We've sent a confirmation email to{" "}
+                <span className="font-semibold text-foreground">{pendingEmail}</span>. Click the
+                link in the email to activate your account.
               </p>
+
+              <div className="mt-4 rounded-xl bg-accent/30 p-4">
+                <p className="text-xs font-mono text-muted-foreground">
+                  Redirecting to:{" "}
+                  <span className="text-foreground font-semibold">
+                    {typeof window !== "undefined" ? window.location.origin : ""}/auth/callback
+                  </span>
+                </p>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs text-muted-foreground">
+                <span className="font-semibold text-primary">💡 Cloudflare Tunnel Note:</span> If
+                clicking the email link on a remote device opens localhost instead of your tunnel,
+                make sure{" "}
+                <code className="rounded bg-accent px-1 text-foreground">
+                  https://*.trycloudflare.com/**
+                </code>{" "}
+                is added to Supabase Dashboard → Auth → Redirect URLs!
+              </div>
 
               <div className="mt-6 rounded-xl bg-accent/30 p-4">
                 <p className="text-sm text-muted-foreground">
@@ -225,7 +273,11 @@ function AuthPage() {
                   disabled={busy || countdown > 0}
                   className="mt-3 w-full rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60"
                 >
-                  {busy ? "Sending…" : countdown > 0 ? `Resend in ${countdown}s` : "Resend confirmation email"}
+                  {busy
+                    ? "Sending…"
+                    : countdown > 0
+                      ? `Resend in ${countdown}s`
+                      : "Resend confirmation email"}
                 </button>
               </div>
 
@@ -260,7 +312,8 @@ function AuthPage() {
               </button>
 
               <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="h-px flex-1 bg-border" /> or {mode === "signin" ? "sign in" : "sign up"} with email
+                <span className="h-px flex-1 bg-border" /> or{" "}
+                {mode === "signin" ? "sign in" : "sign up"} with email
                 <span className="h-px flex-1 bg-border" />
               </div>
 

@@ -12,7 +12,7 @@ export interface PolicyResult {
 }
 
 export const POLICY_VERSION = "sd-v0.2";
-export const MATCH_THRESHOLD = 0.34;
+export const MATCH_THRESHOLD = 0.25;
 
 const MASS_OUTREACH_PATTERNS: RegExp[] = [
   /mass outreach/i,
@@ -28,9 +28,43 @@ const MASS_OUTREACH_PATTERNS: RegExp[] = [
 ];
 
 const STOP_WORDS = new Set([
-  "the","a","an","to","with","for","and","or","of","in","on","at","i","want","need",
-  "someone","some","this","that","my","me","we","you","find","get","looking","who",
-  "is","are","be","this","month","week","weekend","today","now","near",
+  "the",
+  "a",
+  "an",
+  "to",
+  "with",
+  "for",
+  "and",
+  "or",
+  "of",
+  "in",
+  "on",
+  "at",
+  "i",
+  "want",
+  "need",
+  "someone",
+  "some",
+  "this",
+  "that",
+  "my",
+  "me",
+  "we",
+  "you",
+  "find",
+  "get",
+  "looking",
+  "who",
+  "is",
+  "are",
+  "be",
+  "this",
+  "month",
+  "week",
+  "weekend",
+  "today",
+  "now",
+  "near",
 ]);
 
 export function evaluateIntentPolicy(intentText: string): PolicyResult {

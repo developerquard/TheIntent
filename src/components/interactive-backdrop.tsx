@@ -28,8 +28,8 @@ export function InteractiveBackdrop() {
     let width = 0;
     let height = 0;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const spacing = 34;
-    const radius = 170; // influence radius of the cursor
+    const spacing = 50; // Increased from 34 to 50 to reduce dot count by ~50%
+    const radius = 200; // Increased influence radius for smoother effect
 
     // Target + smoothed mouse position.
     const mouse = { x: -9999, y: -9999 };
@@ -62,19 +62,52 @@ export function InteractiveBackdrop() {
     const baseDot = isDark ? "148,163,255" : "70,70,120";
     const hotDot = isDark ? "120,140,255" : "44,43,224";
 
+    // Throttle animation to 30fps max to reduce CPU usage
+    let lastFrameTime = 0;
+    const frameInterval = 1000 / 30; // 30 FPS
+
     let raf = 0;
-    function draw() {
+    function draw(timestamp: number) {
+      // Throttle frame rate
+      if (timestamp - lastFrameTime < frameInterval) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+      lastFrameTime = timestamp;
+
       smooth.x += (mouse.x - smooth.x) * 0.12;
       smooth.y += (mouse.y - smooth.y) * 0.12;
       c.clearRect(0, 0, width, height);
 
+      // Only calculate dots within the influence radius for better performance
+      const startX = Math.max(spacing / 2, Math.floor((smooth.x - radius) / spacing) * spacing);
+      const endX = Math.min(width, Math.ceil((smooth.x + radius) / spacing) * spacing);
+      const startY = Math.max(spacing / 2, Math.floor((smooth.y - radius) / spacing) * spacing);
+      const endY = Math.min(height, Math.ceil((smooth.y + radius) / spacing) * spacing);
+
+      // Draw static dots outside influence area (simplified)
+      c.fillStyle = `rgba(${baseDot},${isDark ? 0.16 : 0.1})`;
       for (let x = spacing / 2; x < width; x += spacing) {
         for (let y = spacing / 2; y < height; y += spacing) {
+          if (x >= startX && x <= endX && y >= startY && y <= endY) continue;
+          c.beginPath();
+          c.arc(x, y, 0.9, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+
+      // Draw animated dots within influence radius
+      for (let x = startX; x <= endX; x += spacing) {
+        for (let y = startY; y <= endY; y += spacing) {
           const dx = x - smooth.x;
           const dy = y - smooth.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const t = Math.max(0, 1 - dist / radius); // 0..1 closeness
-          const size = 0.9 + t * t * 3.4; // grow near cursor (depth pop)
+          const distSq = dx * dx + dy * dy; // Use squared distance to avoid sqrt
+          const radiusSq = radius * radius;
+          if (distSq > radiusSq) continue;
+          
+          const dist = Math.sqrt(distSq);
+          const t = Math.max(0, 1 - dist / radius);
+          const size = 0.9 + t * t * 3.4;
           const alpha = (isDark ? 0.16 : 0.1) + t * 0.7;
           c.beginPath();
           c.fillStyle = `rgba(${t > 0.35 ? hotDot : baseDot},${alpha})`;
@@ -90,7 +123,7 @@ export function InteractiveBackdrop() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseleave", onLeave);
     if (!reduce) raf = requestAnimationFrame(draw);
-    else draw(); // one static frame
+    else draw(0); // one static frame
 
     return () => {
       cancelAnimationFrame(raf);

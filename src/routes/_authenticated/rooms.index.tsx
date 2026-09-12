@@ -42,7 +42,9 @@ function RoomsListPage() {
     if (!actor.id) return;
     const channel = supabase
       .channel("rooms-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () => load(actor.id))
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () =>
+        load(actor.id),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -74,7 +76,9 @@ function RoomsListPage() {
 
       {open.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Live</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Live
+          </h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {open.map((r, idx) => (
               <RoomCard key={r.id} r={r} idx={idx} />
@@ -85,7 +89,9 @@ function RoomsListPage() {
 
       {faded.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Faded</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Faded
+          </h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {faded.map((r, idx) => (
               <RoomCard key={r.id} r={r} idx={idx} />

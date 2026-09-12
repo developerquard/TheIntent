@@ -49,7 +49,9 @@ function AuditPage() {
   useEffect(() => {
     const channel = supabase
       .channel("audit-live")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "audit_logs" }, () =>
+        load(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -66,17 +68,21 @@ function AuditPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <div className="mx-auto max-w-5xl px-5 py-12">
-        <p className="font-mono-label text-sm font-medium text-primary">03 · every decision has a receipt</p>
+        <p className="font-mono-label text-sm font-medium text-primary">
+          03 · every decision has a receipt
+        </p>
         <h1 className="mt-4 text-4xl font-bold text-foreground">Transparency you can verify</h1>
         <p className="mt-3 max-w-2xl text-base text-muted-foreground">
-          Every important decision has a receipt. You can verify why something was shown—or why it was blocked.
-          No hidden algorithms, no black boxes.
+          Every important decision has a receipt. You can verify why something was shown—or why it
+          was blocked. No hidden algorithms, no black boxes.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <span
             className={`rounded-lg px-3 py-1.5 font-mono-label text-sm font-semibold ${
-              chainValid ? "bg-terminal-green/15 text-terminal-green" : "bg-destructive/15 text-destructive"
+              chainValid
+                ? "bg-terminal-green/15 text-terminal-green"
+                : "bg-destructive/15 text-destructive"
             }`}
           >
             {loading ? "verifying…" : chainValid ? "✓ chain intact" : "✗ chain broken"}
@@ -95,19 +101,29 @@ function AuditPage() {
             )}
             {rows.map((r) => (
               <div key={r.id} className="flex items-start gap-3 rounded-xl bg-accent/30 p-4">
-                <div className={`mt-1 h-2 w-2 rounded-full ${
-                  r.decision === "HARD_BLOCK" ? "bg-destructive" : 
-                  r.decision === "REVIEW" ? "bg-yellow-500" : 
-                  "bg-terminal-green"
-                }`} />
+                <div
+                  className={`mt-1 h-2 w-2 rounded-full ${
+                    r.decision === "HARD_BLOCK"
+                      ? "bg-destructive"
+                      : r.decision === "REVIEW"
+                        ? "bg-yellow-500"
+                        : "bg-terminal-green"
+                  }`}
+                />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{r.event_type.replace(/_/g, " ")}</span>
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
-                      r.decision === "HARD_BLOCK" ? "bg-destructive/15 text-destructive" : 
-                      r.decision === "REVIEW" ? "bg-yellow-500/15 text-yellow-600" : 
-                      "bg-terminal-green/15 text-terminal-green"
-                    }`}>
+                    <span className="font-semibold text-foreground">
+                      {r.event_type.replace(/_/g, " ")}
+                    </span>
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                        r.decision === "HARD_BLOCK"
+                          ? "bg-destructive/15 text-destructive"
+                          : r.decision === "REVIEW"
+                            ? "bg-yellow-500/15 text-yellow-600"
+                            : "bg-terminal-green/15 text-terminal-green"
+                      }`}
+                    >
                       {r.decision}
                     </span>
                   </div>
@@ -131,7 +147,9 @@ function AuditPage() {
           </summary>
           <div className="mt-4 rounded-2xl border border-border bg-terminal p-5">
             <pre className="font-mono-label text-[13px] leading-relaxed">
-              <div className="text-terminal-muted">// intent_audit.log — hash-chained, replayable</div>
+              <div className="text-terminal-muted">
+                // intent_audit.log — hash-chained, replayable
+              </div>
               {rows.map((r) => (
                 <div key={r.id} className="text-terminal-foreground">
                   <span className="text-terminal-muted">#{r.id} </span>
@@ -156,9 +174,10 @@ function AuditPage() {
                       {"]"}
                     </>
                   ) : null}
-                  {'} '}
+                  {"} "}
                   <span className="text-terminal-muted">
-                    hash {shortHash(r.entry_hash)} ← {r.prev_hash ? shortHash(r.prev_hash) : "genesis"}
+                    hash {shortHash(r.entry_hash)} ←{" "}
+                    {r.prev_hash ? shortHash(r.prev_hash) : "genesis"}
                   </span>
                 </div>
               ))}

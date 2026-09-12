@@ -57,16 +57,16 @@ function Hero() {
 
   return (
     <section className="mx-auto max-w-6xl px-5 pt-16 pb-20">
-      <MonoLabel>the first intent-based social network</MonoLabel>
+      <MonoLabel>intent matching for the right moment</MonoLabel>
       <div className="mt-8 grid gap-14 lg:grid-cols-2 lg:items-start">
         <div className="animate-fade-in">
           <h1 className="text-5xl font-bold leading-[1.02] text-foreground sm:text-6xl">
-            Say what you want. Land with people who <span className="text-primary">want it too.</span>
+            Find the room that matches what you want right now.
           </h1>
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
             No feed. No followers. No algorithm deciding what you see. Declare an intent — "find
             co-founders in Bengaluru", "learn tabla", "ship a game jam this weekend" — and you're
-            matched into a live room in seconds.
+            matched into the right live room in seconds.
           </p>
 
           <form onSubmit={onSubmit} className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -104,7 +104,10 @@ function Hero() {
 
 function LiveIntentsCard() {
   return (
-    <div className="animate-fade-in rounded-3xl border border-border bg-card p-6 shadow-sm transition-shadow duration-300 hover:shadow-xl" style={{ animationDelay: "120ms" }}>
+    <div
+      className="animate-fade-in rounded-3xl border border-border bg-card p-6 shadow-sm transition-shadow duration-300 hover:shadow-xl"
+      style={{ animationDelay: "120ms" }}
+    >
       <div className="flex items-center justify-between font-mono-label text-sm">
         <span className="flex items-center gap-2 text-terminal-green">
           <span className="h-2 w-2 rounded-full bg-terminal-green" /> live intents
@@ -134,9 +137,21 @@ function LiveIntentsCard() {
 }
 
 const STEPS = [
-  { title: "Declare", body: "One sentence about what you want to do right now. That's your entire profile.", code: "intent_type: join_group" },
-  { title: "Match", body: "Live intents are matched on meaning — confidence scored, never inferred from your history.", code: "profile_similarity ≥ 0.34" },
-  { title: "Land", body: "A room opens the moment a match clears the policy gate. Real people, right now, same goal.", code: "decision: ALLOW → visible" },
+  {
+    title: "Declare",
+    body: "One sentence about what you want to do right now. That's your entire profile.",
+    code: "intent_type: join_group",
+  },
+  {
+    title: "Match",
+    body: "Live intents are matched on meaning — confidence scored, never inferred from your history.",
+    code: "profile_similarity ≥ 0.34",
+  },
+  {
+    title: "Land",
+    body: "A room opens the moment a match clears the policy gate. Real people, right now, same goal.",
+    code: "decision: ALLOW → visible",
+  },
 ];
 
 function HowItWorks() {
@@ -148,14 +163,17 @@ function HowItWorks() {
           Communities that exist because you asked for them
         </h2>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Every room on SocialDiscovery is created by two or more people declaring the same intent at
+          Every room on The Intent is created by two or more people declaring the same intent at
           the same time. When the intent fades, the room can too. Nothing is engineered to keep you
           scrolling.
         </p>
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           {STEPS.map((s) => (
-            <div key={s.title} className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+            <div
+              key={s.title}
+              className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            >
               <h3 className="text-xl font-bold text-foreground">{s.title}</h3>
               <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">{s.body}</p>
               <p className="mt-6 font-mono-label text-sm text-muted-foreground">{s.code}</p>
@@ -174,8 +192,8 @@ function HowItWorks() {
           <div className="rounded-2xl border-2 border-primary bg-card p-6 shadow-sm">
             <h3 className="text-xl font-bold text-foreground">Finite rooms</h3>
             <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-              You came for something specific. You got it. You leave. That's the product working, not
-              failing.
+              You came for something specific. You got it. You leave. That's the product working,
+              not failing.
             </p>
           </div>
         </div>
@@ -209,7 +227,11 @@ const PLANS = [
     price: "from $499",
     unit: "/ campaign",
     body: "Brands, hirers, and event teams host intent-gated rooms — a product launch that only opens to people who declared interest in the category.",
-    bullets: ["Intent-qualified audience only", "Auditable reach reports", "No retargeting, no data resale"],
+    bullets: [
+      "Intent-qualified audience only",
+      "Auditable reach reports",
+      "No retargeting, no data resale",
+    ],
   },
 ];
 
@@ -223,13 +245,16 @@ function Monetization() {
         </h2>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
           Search built the biggest ad business in history on <em>inferred</em> intent.
-          SocialDiscovery runs on <em>declared</em> intent — the strongest commercial signal there is
-          — with zero behavioral tracking. Brands bid on intent clusters, never on people.
+          The Intent runs on <em>declared</em> intent — the strongest commercial signal there is —
+          with zero behavioral tracking. Brands bid on intent clusters, never on people.
         </p>
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           {PLANS.map((p) => (
-            <div key={p.name} className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+            <div
+              key={p.name}
+              className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            >
               <h3 className="text-lg font-bold text-foreground">{p.name}</h3>
               <p className="mt-4">
                 <span className="text-3xl font-bold text-foreground">{p.price}</span>{" "}
@@ -268,7 +293,7 @@ function Monetization() {
 }
 
 const AUDIT_LINES = [
-  { text: '// intent_audit.log — hash-chained, replayable', muted: true },
+  { text: "// intent_audit.log — hash-chained, replayable", muted: true },
   { text: '{"event": "intent_declared", "decision": "ALLOW", "intent_hash": "b39e…9639"}' },
   { text: '{"event": "match_evaluated", "decision": "ALLOW", "intent_hash": "12f7…accb"}' },
   { text: '{"event": "sponsor_placed", "room": "a91f2c", "policy_version": "sd-v0.2"}' },
@@ -294,7 +319,10 @@ function AuditSection() {
         <div className="mt-10 overflow-x-auto rounded-2xl bg-terminal p-6">
           <pre className="font-mono-label text-[13px] leading-relaxed sm:text-sm">
             {AUDIT_LINES.map((l, idx) => (
-              <div key={idx} className={l.muted ? "text-terminal-muted" : "text-terminal-foreground"}>
+              <div
+                key={idx}
+                className={l.muted ? "text-terminal-muted" : "text-terminal-foreground"}
+              >
                 {l.text}
               </div>
             ))}
@@ -315,8 +343,12 @@ function ClosingCta() {
   return (
     <section className="border-t border-border bg-background">
       <div className="mx-auto max-w-6xl px-5 py-24 text-center">
-        <h2 className="text-4xl font-bold text-foreground sm:text-5xl">Stop scrolling. Start declaring.</h2>
-        <p className="mt-5 text-lg text-muted-foreground">Early access opens city by city. Mumbai first.</p>
+        <h2 className="text-4xl font-bold text-foreground sm:text-5xl">
+          Stop scrolling. Start declaring.
+        </h2>
+        <p className="mt-5 text-lg text-muted-foreground">
+          Early access opens city by city. Mumbai first.
+        </p>
         <div className="mt-9 flex flex-wrap justify-center gap-3">
           <Link
             to="/auth"

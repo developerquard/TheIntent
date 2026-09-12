@@ -34,7 +34,14 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem("reduceMotion", String(reduceMotion));
-  }, [reduceMotion]);
+    if (mounted) {
+      if (reduceMotion) {
+        document.documentElement.classList.add("reduce-motion");
+      } else {
+        document.documentElement.classList.remove("reduce-motion");
+      }
+    }
+  }, [reduceMotion, mounted]);
 
   useEffect(() => {
     localStorage.setItem("reduceBackgroundEffects", String(reduceBackgroundEffects));
@@ -73,15 +80,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     setCustomMatchSound,
   };
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
-  return (
-    <AccessibilityContext.Provider value={value}>
-      {children}
-    </AccessibilityContext.Provider>
-  );
+  return <AccessibilityContext.Provider value={value}>{children}</AccessibilityContext.Provider>;
 }
 
 export function useAccessibility() {

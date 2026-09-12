@@ -1,5 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Monitor, Moon, Sun, Palette, Bell, Check, Accessibility, Volume2, Upload, Play } from "lucide-react";
+import {
+  Monitor,
+  Moon,
+  Sun,
+  Palette,
+  Bell,
+  Check,
+  Accessibility,
+  Volume2,
+  Upload,
+  Play,
+} from "lucide-react";
 import { useState, useRef } from "react";
 import { useTheme, type ThemePref } from "@/lib/use-theme";
 import { useAuth, actorFromUser } from "@/lib/use-auth";
@@ -71,7 +82,7 @@ function SettingsPage() {
         <p className="font-mono-label text-sm font-medium text-primary">preferences</p>
         <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">Settings</h1>
         <p className="mt-2 text-muted-foreground">
-          Personalize how SocialDiscovery looks and feels. Changes save instantly.
+          Personalize how The Intent looks and feels. Changes save instantly.
         </p>
       </div>
 
@@ -85,7 +96,8 @@ function SettingsPage() {
           <h2 className="text-lg font-bold text-foreground">Appearance</h2>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Currently showing the <span className="font-semibold text-foreground">{resolved}</span> theme.
+          Currently showing the <span className="font-semibold text-foreground">{resolved}</span>{" "}
+          theme.
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -108,7 +120,9 @@ function SettingsPage() {
                     <Check className="h-3 w-3" />
                   </span>
                 )}
-                <Icon className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground")} />
+                <Icon
+                  className={cn("h-5 w-5", active ? "text-primary" : "text-muted-foreground")}
+                />
                 <span className="font-semibold text-foreground">{opt.label}</span>
                 <span className="text-xs text-muted-foreground">{opt.hint}</span>
               </button>
@@ -165,7 +179,9 @@ function SettingsPage() {
         <div className="mt-6 space-y-4">
           <div>
             <p className="font-semibold text-foreground">Custom ringtone</p>
-            <p className="text-sm text-muted-foreground">Upload your personal ringtone for room calls.</p>
+            <p className="text-sm text-muted-foreground">
+              Upload your personal ringtone for room calls.
+            </p>
             <div className="mt-3 flex items-center gap-3">
               <input
                 ref={ringtoneInputRef}
@@ -195,7 +211,9 @@ function SettingsPage() {
 
           <div>
             <p className="font-semibold text-foreground">Match sound</p>
-            <p className="text-sm text-muted-foreground">Upload a custom sound for intent matching.</p>
+            <p className="text-sm text-muted-foreground">
+              Upload a custom sound for intent matching.
+            </p>
             <div className="mt-3 flex items-center gap-3">
               <input
                 ref={matchSoundInputRef}
@@ -242,7 +260,9 @@ function SettingsPage() {
           </div>
           <div className="flex items-center justify-between">
             <dt className="text-muted-foreground">Actor ID</dt>
-            <dd className="font-mono-label text-xs text-muted-foreground">{actor.id.slice(0, 16) || "—"}</dd>
+            <dd className="font-mono-label text-xs text-muted-foreground">
+              {actor.id.slice(0, 16) || "—"}
+            </dd>
           </div>
         </dl>
       </section>

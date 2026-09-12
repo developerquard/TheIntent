@@ -2,27 +2,30 @@
 // Server-side Supabase client with service role key - bypasses RLS.
 // Use this for admin operations in server functions and server routes only.
 // For user-authenticated queries (with RLS), use the auth middleware instead.
-import { createClient } from '@supabase/supabase-js';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { Database } from './types';
+import { createClient } from "@supabase/supabase-js";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { Database } from "./types";
 
 function loadServerEnv() {
   const cwd = process.cwd();
-  const candidates = ['.env', '.env.local', '.env.production', '.env.development'];
+  const candidates = [".env", ".env.local", ".env.production", ".env.development"];
 
   for (const file of candidates) {
     const filePath = join(cwd, file);
     if (!existsSync(filePath)) continue;
 
-    for (const line of readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    for (const line of readFileSync(filePath, "utf8").split(/\r?\n/)) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const separatorIndex = trimmed.indexOf('=');
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const separatorIndex = trimmed.indexOf("=");
       if (separatorIndex <= 0) continue;
 
       const key = trimmed.slice(0, separatorIndex).trim();
-      const value = trimmed.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+      const value = trimmed
+        .slice(separatorIndex + 1)
+        .trim()
+        .replace(/^['"]|['"]$/g, "");
       if (!process.env[key]) {
         process.env[key] = value;
       }
@@ -33,13 +36,13 @@ function loadServerEnv() {
 loadServerEnv();
 
 function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
-      typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
     );
 
     if (init?.headers) {
@@ -47,25 +50,29 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     // New Supabase API keys are opaque strings, not bearer JWTs.
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
-      headers.delete('Authorization');
+    if (
+      isNewSupabaseApiKey(supabaseKey) &&
+      headers.get("Authorization") === `Bearer ${supabaseKey}`
+    ) {
+      headers.delete("Authorization");
     }
 
-    headers.set('apikey', supabaseKey);
+    headers.set("apikey", supabaseKey);
     return fetch(input, { ...init, headers });
   };
 }
 
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
+      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
+      ...(!SUPABASE_SERVICE_ROLE_KEY ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Configure your Supabase environment variables.`;
+    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Configure your Supabase environment variables.`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
@@ -78,7 +85,7 @@ function createSupabaseAdminClient() {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
-    }
+    },
   });
 }
 

@@ -82,22 +82,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SocialDiscovery — Say what you want. Land with people who want it too." },
+      { title: "The Intent — match around what people want right now." },
       {
         name: "description",
         content:
-          "The first intent-based social network. No feed, no followers. Declare one intent and get matched into a live, policy-gated, audit-chained room in seconds.",
+          "Intent-based matching for people who want to find the right room, community, or collaboration at the right time.",
       },
-      { name: "author", content: "SocialDiscovery" },
-      { property: "og:title", content: "SocialDiscovery — the first intent-based social network" },
+      { name: "author", content: "The Intent" },
+      { property: "og:title", content: "The Intent — match around what people want right now." },
       {
         property: "og:description",
         content:
-          "Say what you want. Land with people who want it too. Every match is policy-gated and audit-chained · sd-v0.2.",
+          "Find the people, rooms, and communities aligned to your intent — without a feed, noisy tracking, or algorithmic drift.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@SocialDiscovery" },
+      { name: "twitter:site", content: "@theintent" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

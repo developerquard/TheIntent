@@ -47,6 +47,11 @@ const HandleJoinRequestInput = z.object({
   action: z.enum(["approve", "decline"]),
 });
 
+const CheckSimilarityInput = z.object({
+  text: z.string().min(1).max(280),
+  actorId: z.string().min(3).max(64),
+});
+
 async function sha256(input: string): Promise<string> {
   const { createHash } = await import("node:crypto");
   return createHash("sha256").update(input).digest("hex");
@@ -103,7 +108,7 @@ async function appendAudit(
 }
 
 export const declareIntent = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => DeclareInput.parse(d))
+  .validator((d: unknown) => DeclareInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -160,8 +165,13 @@ export const declareIntent = createServerFn({ method: "POST" })
       .order("created_at", { ascending: true })
       .limit(50);
 
-    let best: { id: string; actor_id: string; actor_label: string; intent_text: string; score: number } | null =
-      null;
+    let best: {
+      id: string;
+      actor_id: string;
+      actor_label: string;
+      intent_text: string;
+      score: number;
+    } | null = null;
     for (const c of candidates ?? []) {
       const score = computeIntentSimilarity(text, c.intent_text);
       if (score >= MATCH_THRESHOLD && (!best || score > best.score)) {
@@ -188,6 +198,7 @@ export const declareIntent = createServerFn({ method: "POST" })
         .select("id")
         .single();
 
+      if (!room) throw new Error("Failed to create room");
       const roomId = room.id as string;
 
       // Insert my intent already matched, and mark the candidate matched.
@@ -252,7 +263,7 @@ export const declareIntent = createServerFn({ method: "POST" })
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => MessageInput.parse(d))
+  .validator((d: unknown) => MessageInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -278,11 +289,12 @@ export const sendMessage = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
+    if (!msg) throw new Error("Failed to send message");
     return { id: msg.id as string };
   });
 
 export const leaveRoom = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ roomId: z.string().uuid(), actorId: z.string() }).parse(d))
+  .validator((d: unknown) => z.object({ roomId: z.string().uuid(), actorId: z.string() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -291,10 +303,7 @@ export const leaveRoom = createServerFn({ method: "POST" })
       .from("rooms")
       .update({ status: "closed", closed_at: new Date().toISOString() })
       .eq("id", data.roomId);
-    await admin
-      .from("collaboration_rooms")
-      .update({ status: "inactive" })
-      .eq("id", data.roomId);
+    await admin.from("collaboration_rooms").update({ status: "inactive" }).eq("id", data.roomId);
     await admin.from("intents").update({ status: "expired" }).eq("room_id", data.roomId);
 
     await appendAudit(admin, {
@@ -307,7 +316,7 @@ export const leaveRoom = createServerFn({ method: "POST" })
   });
 
 export const joinWaitlist = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => WaitlistInput.parse(d))
+  .validator((d: unknown) => WaitlistInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -316,7 +325,7 @@ export const joinWaitlist = createServerFn({ method: "POST" })
   });
 
 export const createCollaborationRoom = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => CreateCollaborationRoomInput.parse(d))
+  .validator((d: unknown) => CreateCollaborationRoomInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -400,7 +409,7 @@ export const createCollaborationRoom = createServerFn({ method: "POST" })
   });
 
 export const getCollaborationRooms = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ intentHash: z.string() }).parse(d))
+  .validator((d: unknown) => z.object({ intentHash: z.string() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -413,21 +422,22 @@ export const getCollaborationRooms = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false });
 
     return {
-      rooms: rooms?.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        topic: r.topic,
-        maxMembers: r.max_members,
-        currentMembers: r.member_ids.length,
-        memberLabels: r.member_labels,
-        joinMethod: r.join_method,
-        createdAt: r.created_at,
-      })) ?? [],
+      rooms:
+        rooms?.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          topic: r.topic,
+          maxMembers: r.max_members,
+          currentMembers: r.member_ids.length,
+          memberLabels: r.member_labels,
+          joinMethod: r.join_method,
+          createdAt: r.created_at,
+        })) ?? [],
     };
   });
 
 export const requestJoinRoom = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => RequestJoinRoomInput.parse(d))
+  .validator((d: unknown) => RequestJoinRoomInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -465,10 +475,10 @@ export const requestJoinRoom = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
+    if (!request) throw new Error("Failed to create join request");
+
     // Create notifications
-    const notifyUsers = room.join_method === "admin_approval" 
-      ? [room.admin_id] 
-      : room.member_ids;
+    const notifyUsers = room.join_method === "admin_approval" ? [room.admin_id] : room.member_ids;
 
     for (const userId of notifyUsers) {
       await admin.from("notifications").insert({
@@ -491,7 +501,7 @@ export const requestJoinRoom = createServerFn({ method: "POST" })
   });
 
 export const handleJoinRequest = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => HandleJoinRequestInput.parse(d))
+  .validator((d: unknown) => HandleJoinRequestInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -507,7 +517,7 @@ export const handleJoinRequest = createServerFn({ method: "POST" })
 
     const { data: room } = await admin
       .from("collaboration_rooms")
-      .select("id, member_ids, member_labels, max_members, admin_id, join_method")
+      .select("id, member_ids, member_labels, max_members, admin_id, join_method, intent_hash")
       .eq("id", request.room_id)
       .single();
 
@@ -558,10 +568,7 @@ export const handleJoinRequest = createServerFn({ method: "POST" })
       }
 
       // Update request status
-      await admin
-        .from("join_requests")
-        .update({ status: "approved" })
-        .eq("id", request.id);
+      await admin.from("join_requests").update({ status: "approved" }).eq("id", request.id);
 
       // Create notification for requester
       await admin.from("notifications").insert({
@@ -591,10 +598,7 @@ export const handleJoinRequest = createServerFn({ method: "POST" })
       });
     } else {
       // Decline
-      await admin
-        .from("join_requests")
-        .update({ status: "declined" })
-        .eq("id", request.id);
+      await admin.from("join_requests").update({ status: "declined" }).eq("id", request.id);
 
       // Create notification for requester
       await admin.from("notifications").insert({
@@ -617,7 +621,7 @@ export const handleJoinRequest = createServerFn({ method: "POST" })
   });
 
 export const getNotifications = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ userId: z.string() }).parse(d))
+  .validator((d: unknown) => z.object({ userId: z.string() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -635,15 +639,55 @@ export const getNotifications = createServerFn({ method: "POST" })
   });
 
 export const markNotificationRead = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ notificationId: z.string().uuid() }).parse(d))
+  .validator((d: unknown) => z.object({ notificationId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
-    await admin
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", data.notificationId);
+    await admin.from("notifications").update({ is_read: true }).eq("id", data.notificationId);
 
     return { success: true };
+  });
+
+export const checkIntentSimilarity = createServerFn({ method: "POST" })
+  .validator((d: unknown) => CheckSimilarityInput.parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+
+    const text = data.text.trim();
+
+    // Query active intents (unmatched, not own)
+    const { data: candidates } = await admin
+      .from("intents")
+      .select("id, actor_id, actor_label, intent_text")
+      .eq("status", "active")
+      .is("room_id", null)
+      .neq("actor_id", data.actorId)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    const matches: Array<{
+      id: string;
+      actor_id: string;
+      actor_label: string;
+      intent_text: string;
+      score: number;
+    }> = [];
+
+    for (const c of candidates ?? []) {
+      const score = computeIntentSimilarity(text, c.intent_text);
+      if (score >= MATCH_THRESHOLD) {
+        matches.push({ ...c, score });
+      }
+    }
+
+    // Sort by score descending and return top 5
+    matches.sort((a, b) => b.score - a.score);
+    const topMatches = matches.slice(0, 5);
+
+    return {
+      matches: topMatches,
+      hasMatches: topMatches.length > 0,
+    };
   });

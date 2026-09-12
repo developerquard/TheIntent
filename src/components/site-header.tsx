@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/use-auth";
 import { useTheme } from "@/lib/use-theme";
 import { useAccessibility } from "@/lib/use-accessibility.tsx";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getNotifications, markNotificationRead, handleJoinRequest } from "@/lib/social.functions";
 
@@ -22,6 +22,17 @@ function ThemeToggle() {
   );
 }
 
+interface NotificationItem {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  related_id: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 function NotificationBell() {
   const { user } = useAuth();
   const { soundCues, customMatchSound } = useAccessibility();
@@ -29,63 +40,69 @@ function NotificationBell() {
   const markRead = useServerFn(markNotificationRead);
   const runJoinRequest = useServerFn(handleJoinRequest);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const previousUnreadCount = useRef(0);
 
-  const handleAction = async (requestId: string, action: "approve" | "decline", notificationId: string) => {
+  const handleAction = async (
+    requestId: string,
+    action: "approve" | "decline",
+    notificationId: string,
+  ) => {
     try {
       await runJoinRequest({ data: { requestId, actorId: user?.id || "", action } });
       await handleMarkRead(notificationId);
       toast.success(`Request ${action === "approve" ? "accepted" : "declined"} successfully`);
-      loadNotifications();
+      void loadNotifications();
     } catch (err) {
       console.error(`Failed to ${action} request:`, err);
       toast.error(err instanceof Error ? err.message : `Failed to ${action} request`);
       // Fallback: mark notification read so it doesn't get stuck if already processed
       await handleMarkRead(notificationId);
-      loadNotifications();
+      void loadNotifications();
     }
   };
 
-  const playNotificationSound = () => {
+  const playNotificationSound = useCallback(() => {
     if (soundCues) {
-      const audio = customMatchSound ? new Audio(customMatchSound) : new Audio('/match-sound.mp3');
+      const audio = customMatchSound ? new Audio(customMatchSound) : new Audio("/match-sound.mp3");
       audio.play().catch(console.error);
     }
-  };
+  }, [soundCues, customMatchSound]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!user?.id) return;
     try {
       const res = await getNotifs({ data: { userId: user.id } });
-      const newNotifications = res.notifications;
-      const newUnreadCount = newNotifications.filter((n: any) => !n.is_read).length;
-      
+      const newNotifications = (res.notifications || []) as NotificationItem[];
+      const newUnreadCount = newNotifications.filter((n) => !n.is_read).length;
+
       // Play sound if unread count increased
       if (newUnreadCount > previousUnreadCount.current && previousUnreadCount.current > 0) {
         playNotificationSound();
       }
-      
+
       setNotifications(newNotifications);
       setUnreadCount(newUnreadCount);
       previousUnreadCount.current = newUnreadCount;
     } catch (err) {
       console.error("Failed to load notifications:", err);
     }
-  };
+  }, [user?.id, getNotifs, playNotificationSound]);
 
   useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 30000); // Poll every 30s
+    void loadNotifications();
+    const interval = setInterval(() => {
+      void loadNotifications();
+    }, 10000); // Poll every 10 seconds
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [loadNotifications]);
 
   const handleMarkRead = async (notificationId: string) => {
     try {
       await markRead({ data: { notificationId } });
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
+        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
@@ -112,10 +129,7 @@ function NotificationBell() {
 
       {showNotifications && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowNotifications(false)}
-          />
+          <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
           <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-2xl border border-border bg-card p-4 shadow-lg">
             <h3 className="mb-3 text-sm font-semibold text-foreground">Notifications</h3>
             {notifications.length === 0 ? (
@@ -176,8 +190,11 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-        <Link to="/" className="text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-80">
-          Social<span className="text-primary">Discovery</span>
+        <Link
+          to="/"
+          className="text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-80"
+        >
+          The <span className="text-primary">Intent</span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
           <a href="/#how" className="transition-colors hover:text-foreground">
@@ -203,7 +220,10 @@ export function SiteHeader() {
               </Link>
             ) : (
               <div className="flex items-center gap-3">
-                <Link to="/auth" className="text-sm font-semibold text-foreground transition-colors hover:text-primary">
+                <Link
+                  to="/auth"
+                  className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
+                >
                   Sign in
                 </Link>
                 <Link

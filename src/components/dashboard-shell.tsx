@@ -69,7 +69,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <nav className="mt-4 flex flex-1 flex-col gap-1.5 px-3">
           {NAV.map((item, i) => {
-            const active = pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(item.to));
+            const active =
+              pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(item.to));
             const Icon = item.icon;
             return (
               <Link
@@ -114,8 +115,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 expanded ? "opacity-100" : "opacity-0",
               )}
             >
-              <p className="truncate text-sm font-semibold text-sidebar-foreground">{actor.label || "…"}</p>
-              <p className="truncate font-mono-label text-xs text-sidebar-foreground/50">{actor.id.slice(0, 12)}</p>
+              <p className="truncate text-sm font-semibold text-sidebar-foreground">
+                {actor.label || "…"}
+              </p>
+              <p className="truncate font-mono-label text-xs text-sidebar-foreground/50">
+                {actor.id.slice(0, 12)}
+              </p>
             </div>
             {expanded && (
               <div className="flex shrink-0 items-center gap-1">
@@ -150,8 +155,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Content */}
       <main
         className={cn(
-          "min-h-screen pl-[72px] transition-all duration-300",
-          expanded && "blur-[1.5px]",
+          "min-h-screen pl-[72px] pr-[72px] transition-all duration-300",
+          expanded && "pl-[256px] pr-[256px] blur-[1.5px]",
         )}
       >
         {children}

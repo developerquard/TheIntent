@@ -81,8 +81,12 @@ function DashboardPage() {
     if (!actor.id) return;
     const channel = supabase
       .channel("dash-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "intents" }, () => load(actor.id))
-      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () => load(actor.id))
+      .on("postgres_changes", { event: "*", schema: "public", table: "intents" }, () =>
+        load(actor.id),
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () =>
+        load(actor.id),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -121,7 +125,8 @@ function DashboardPage() {
           What are you looking for today?
         </h1>
         <p className="mt-2 text-base text-muted-foreground">
-          Meet people based on what you're trying to do right now—not what an algorithm thinks you want.
+          Meet people based on what you're trying to do right now—not what an algorithm thinks you
+          want.
         </p>
       </div>
 
@@ -151,7 +156,10 @@ function DashboardPage() {
         <section className="lg:col-span-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-foreground">Recent intents</h2>
-            <Link to="/app" className="group flex items-center gap-1 text-sm font-semibold text-primary">
+            <Link
+              to="/app"
+              className="group flex items-center gap-1 text-sm font-semibold text-primary"
+            >
               New intent
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
@@ -173,7 +181,9 @@ function DashboardPage() {
                 className="animate-fade-in flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <span className={`mt-0.5 rounded-md px-2 py-0.5 font-mono-label text-xs font-semibold ${statusStyle(i.status)}`}>
+                <span
+                  className={`mt-0.5 rounded-md px-2 py-0.5 font-mono-label text-xs font-semibold ${statusStyle(i.status)}`}
+                >
                   {i.status}
                 </span>
                 <span className="flex-1 text-[15px] text-foreground">{i.intent_text}</span>
@@ -197,13 +207,21 @@ function DashboardPage() {
             )}
             <ol className="relative space-y-4">
               {activity.map((a, idx) => (
-                <li key={a.id} className="animate-fade-in flex gap-3" style={{ animationDelay: `${idx * 40}ms` }}>
+                <li
+                  key={a.id}
+                  className="animate-fade-in flex gap-3"
+                  style={{ animationDelay: `${idx * 40}ms` }}
+                >
                   <div className="flex flex-col items-center">
-                    <span className={`mt-1 h-2.5 w-2.5 rounded-full ${a.kind === "room" ? "bg-terminal-green" : "bg-primary"}`} />
+                    <span
+                      className={`mt-1 h-2.5 w-2.5 rounded-full ${a.kind === "room" ? "bg-terminal-green" : "bg-primary"}`}
+                    />
                     {idx < activity.length - 1 && <span className="mt-1 w-px flex-1 bg-border" />}
                   </div>
                   <Link to={a.to} className="group flex-1 pb-1">
-                    <p className="line-clamp-2 text-sm text-foreground group-hover:text-primary">{a.title}</p>
+                    <p className="line-clamp-2 text-sm text-foreground group-hover:text-primary">
+                      {a.title}
+                    </p>
                     <p className="mt-0.5 font-mono-label text-xs text-muted-foreground">
                       {a.meta} · {timeAgo(a.when)}
                     </p>

@@ -108,9 +108,7 @@ export function CallPanel({
       )}
 
       {!canCall && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Join this room to start a call.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">Join this room to start a call.</p>
       )}
     </div>
   );

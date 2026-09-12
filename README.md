@@ -1,225 +1,74 @@
-# 🚀 SocialDiscovery - Next-Gen Social Media Platform 2026
+# The Intent
 
+A production-ready, intent-matching web app built with React, Vite, TanStack Start, and Supabase. This project is designed to run as a single Node process behind PM2 and a reverse proxy such as Nginx.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/typescript-%3E%3D5.0-blue.svg)](https://www.typescriptlang.org)
-[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org)
+## Stack
 
+- Frontend: React + Vite + TanStack Start
+- Runtime: Node.js server
+- Auth/database: Supabase
+- Process manager: PM2
+- Hosting model: VPS / cloud VM with Nginx + SSL
 
-A privacy-first, intent-governed social discovery platform with AI-powered recommendations, real-time messaging, and modern UX.
+## Production startup
 
-## ✨ Key Features
-
-### 🎯 Core Features
-- **Intent-Based Discovery**: Every action is governed by explicit intent policies
-- **AI-Powered Feed**: Advanced ML recommendations with diversity enforcement
-- **Real-time Messaging**: WebSocket-based instant messaging with typing indicators
-- **Stories**: 24-hour ephemeral content with view tracking
-- **Live Streaming**: WebRTC-based live video streaming
-- **Advanced Search**: Full-text search powered by Meilisearch
-- **Content Moderation**: AI-powered automated moderation
-
-### 🛡️ Privacy & Security
-- **End-to-End Encryption**: Secure messaging with E2EE
-- **Zero-Knowledge Auth**: Privacy-preserving authentication
-- **GDPR Compliant**: Full data portability and right to be forgotten
-- **Content Warnings**: Customizable content filtering
-- **Advanced Blocking**: Comprehensive blocking and muting system
-
-### 🤖 AI/ML Features
-- **Personalized Recommendations**: Hybrid content + collaborative filtering
-- **Smart Moderation**: Automated content moderation with ML
-- **Trending Detection**: Real-time trend identification
-- **Sentiment Analysis**: Post and comment sentiment tracking
-- **Image Recognition**: Automated image tagging and NSFW detection
-
-### 💎 Modern UX
-- **Glassmorphism UI**: Beautiful, modern design with depth
-- **Dark Mode**: Eye-friendly dark theme
-- **Micro-animations**: Smooth, delightful interactions
-- **Infinite Scroll**: Seamless content loading
-- **PWA Support**: Install as native app
-
-## 🏗️ Architecture
-
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│ Frontend │────▶│ API Gateway │────▶│ Backend │
-│ (Next.js) │ │ (Nginx) │ │ (Node.js) │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
-│
-┌────────────────────────────────────────────────┼────────────────┐
-│ │ │
-┌───────▼────────┐ ┌──────────────┐ ┌────────────────▼──┐ ┌──────────▼───────┐
-│ PostgreSQL │ │ Redis │ │ ML Services │ │ WebSocket │
-│ (Primary DB) │ │ (Cache) │ │ (Python) │ │ (Real-time) │
-└────────────────┘ └──────────────┘ └───────────────────┘ └──────────────────┘
-│ │ │ │
-┌───────▼──────────────┐ │ ┌────────▼────────┐ ┌────────▼─────────┐
-│ Meilisearch │ │ │ Vector DB │ │ RabbitMQ │
-│ (Search Engine) │ │ │ (Qdrant) │ │ (Message Queue)│
-└──────────────────────┘ │ └─────────────────┘ └──────────────────┘
-│
-┌────────▼────────┐
-│ MinIO/S3 │
-│ (Object Store)│
-└─────────────────┘
-
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- Python 3.12+
-- Docker & Docker Compose
-- PostgreSQL 16
-- Redis 7
-
-### Installation
-
-1. **Clone the repository**
 ```bash
-git clone https://github.com/LOLA0786/Socialdiscovery.git
-cd Socialdiscovery
-Install dependencies
-
-bash
-Copy code
-# Backend
-cd backend
 npm install
-
-# Frontend
-cd ../frontend
-npm install
-
-# ML Services
-cd ../ml-services
-pip install -r requirements.txt
-Set up environment variables
-
-bash
-Copy code
 cp .env.example .env
-# Edit .env with your configuration
-Start services with Docker Compose
+npm run build
+pm2 start ecosystem.config.cjs
+```
 
-bash
-Copy code
-docker-compose up -d
-Run database migrations
+## PM2 commands
 
-bash
-Copy code
-cd backend
-npx prisma migrate dev
-npx prisma generate
-Start development servers
+```bash
+pm2 start ecosystem.config.cjs
+pm2 reload ecosystem.config.cjs
+pm2 stop ecosystem.config.cjs
+pm2 logs the-intent
+```
 
-bash
-Copy code
-# Terminal 1: Backend API
-cd backend
+## Required environment variables
+
+Create a real `.env` file with values like:
+
+```bash
+NODE_ENV=production
+PORT=5173
+HOST=0.0.0.0
+NITRO_PRESET=node_server
+
+DATABASE_URL=postgresql://...
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=...
+VITE_SUPABASE_PROJECT_ID=your-project-id
+
+APP_DOMAIN=https://your-domain.com
+```
+
+## Production run notes
+
+- The app listens on port `5173` by default.
+- PM2 is the recommended production runner.
+- Set `APP_DOMAIN` to your public production URL, not localhost.
+- Keep `.env` off Git and use a real Supabase project.
+- Nginx should proxy traffic to `127.0.0.1:5173`.
+
+## Local development
+
+```bash
+npm install
 npm run dev
+```
 
-# Terminal 2: Frontend
-cd frontend
-npm run dev
+## Build verification
 
-# Terminal 3: WebSocket Server
-cd backend
-npm run ws:dev
+```bash
+npm run build
+```
 
-# Terminal 4: ML Services
-cd ml-services
-uvicorn main:app --reload
-Access the application
-
-Frontend: http://localhost:3000
-
-Backend API: http://localhost:3001
-
-API Docs: http://localhost:3001/api-docs
-
-WebSocket: ws://localhost:3002
-
-ML Services: http://localhost:8000
-
-📚 API Documentation
-Authentication
-Register
-bash
-Copy code
-POST /api/v1/auth/register
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securePassword123",
-  "username": "johndoe",
-  "fullName": "John Doe"
-}
-Login
-bash
-Copy code
-POST /api/v1/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securePassword123"
-}
-Posts
-Create Post
-bash
-Copy code
-POST /api/v1/posts
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "content": "Hello World!",
-  "type": "TEXT",
-  "visibility": "PUBLIC",
-  "hashtags": ["hello", "world"]
-}
-Get Feed
-bash
-Copy code
-GET /api/v1/posts/feed?page=1&limit=20&type=foryou
-Authorization: Bearer <token>
-Full API documentation available at /api-docs when running the server.
-🧪 Testing
-bash
-Copy code
-# Backend tests
-cd backend
-npm test
-npm run test:e2e
-npm run test:coverage
-
-# Frontend tests
-cd frontend
-npm test
-npm run test:coverage
-
-# ML tests
-cd ml-services
-pytest
-pytest --cov
-📦 Deployment
-Docker Production Build
-bash
-Copy code
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-Kubernetes Deployment
-bash
-Copy code
-kubectl apply -f infrastructure/kubernetes/
-kubectl get pods -n socialdiscovery
-📝 License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-Made with ❤️ by the SocialDiscovery Team
-#
+This repo is intentionally simplified to a PM2-first deployment model. Legacy Docker and multi-service setup files are no longer the primary production path for the current app.
