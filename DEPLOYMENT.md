@@ -310,37 +310,7 @@ sudo nginx -t
 - Quarterly: Review and optimize performance
 - Annually: Review hosting costs and scaling needs
 
-## GitHub Actions Setup
-
-### Automated CI/CD Pipeline
-
-This project includes a GitHub Actions workflow that automatically deploys to your VPS when you push to the main branch.
-
-### Required GitHub Secrets
-
-Configure the following secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions > New repository secret`):
-
-- **SSH_HOST**: Your VPS IP address or domain name (e.g., `192.168.1.1` or `your-domain.com`)
-- **SSH_USERNAME**: Your SSH username (e.g., `root` or `ubuntu`)
-- **SSH_KEY**: Your private SSH key (the content of your `.pem` or `.key` file)
-- **SSH_PORT**: SSH port number (default: `22`)
-
-### How to Add SSH Key as Secret:
-
-1. Copy your private SSH key content:
-
-   ```bash
-   cat ~/.ssh/your_private_key.pem
-   ```
-
-2. Go to GitHub repository: `Settings > Secrets and variables > Actions > New repository secret`
-
-3. Name: `SSH_KEY`
-4. Value: Paste the entire private key content (including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----`)
-
-### Workflow File Location
-
-The GitHub Actions workflow is located at `.github/workflows/deploy.yml` and triggers on pushes to the `main` branch.
+## Deployment
 
 ### Deployment Script
 
@@ -353,7 +323,7 @@ The automated deployment script is located at `scripts/deploy.sh` on the server.
 
 ### Manual Deployment
 
-If you need to deploy manually without GitHub Actions:
+Deploy directly from an operator machine or the VPS:
 
 ```bash
 ssh your-user@your-vps-ip
