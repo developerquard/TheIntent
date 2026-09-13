@@ -12,7 +12,6 @@ import {
   requestJoinRoom,
   checkIntentSimilarity,
 } from "@/lib/social.functions";
-import { shortHash } from "@/lib/intent-engine";
 import { ThreeDFooter } from "@/components/3d-footer";
 
 export const Route = createFileRoute("/_authenticated/app")({
@@ -52,7 +51,6 @@ function AppPage() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [intents, setIntents] = useState<IntentRow[]>([]);
-  const [developerMode, setDeveloperMode] = useState(false);
   const [showCollaborationModal, setShowCollaborationModal] = useState(false);
   const [collabRooms, setCollabRooms] = useState<CollabRoom[]>([]);
   const [intentHash, setIntentHash] = useState("");
@@ -258,17 +256,9 @@ function AppPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-10">
       <div className="animate-fade-in">
-        <div className="flex items-center justify-between">
-          <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">
-            What do you want to do today?
-          </h1>
-          <button
-            onClick={() => setDeveloperMode(!developerMode)}
-            className="font-mono-label text-xs text-muted-foreground hover:text-primary"
-          >
-            {developerMode ? "dev: on" : "dev: off"}
-          </button>
-        </div>
+        <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">
+          What do you want to do today?
+        </h1>
         <p className="mt-2 max-w-2xl text-base text-muted-foreground">
           Meet people based on what you're trying to do right now—not what an algorithm thinks you
           want.
@@ -310,11 +300,6 @@ function AppPage() {
             {busy ? "Matching…" : "Declare"}
           </button>
         </div>
-        {developerMode && (
-          <p className="mt-3 font-mono-label text-xs text-muted-foreground">
-            policy-gated · declaring as {actor.label || "…"} · match threshold ≥ 0.34
-          </p>
-        )}
       </form>
 
       <section className="mt-10">
@@ -359,11 +344,6 @@ function AppPage() {
             >
               <span className="font-mono-label text-sm text-muted-foreground">{i.actor_label}</span>
               <span className="flex-1 text-[15px] text-foreground">{i.intent_text}</span>
-              {developerMode && (
-                <span className="font-mono-label text-xs text-muted-foreground">
-                  {shortHash(i.intent_hash)}
-                </span>
-              )}
             </li>
           ))}
         </ul>
