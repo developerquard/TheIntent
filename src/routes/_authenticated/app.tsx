@@ -254,12 +254,12 @@ function AppPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 md:px-10">
+    <div className="mx-auto max-w-5xl px-5 py-8 md:px-8">
       <div className="animate-fade-in">
-        <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">
+        <h1 className="mt-1 text-2xl font-bold text-foreground md:text-3xl">
           What do you want to do today?
         </h1>
-        <p className="mt-2 max-w-2xl text-base text-muted-foreground">
+        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground md:text-[15px]">
           Meet people based on what you're trying to do right now—not what an algorithm thinks you
           want.
         </p>
@@ -267,49 +267,49 @@ function AppPage() {
 
       <form
         onSubmit={onDeclare}
-        className="animate-fade-in mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm"
+        className="animate-fade-in mt-6 rounded-xl border border-border bg-card p-4 shadow-sm"
         style={{ animationDelay: "60ms" }}
       >
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {["Build a startup", "Learn Python", "Gaming", "Fitness", "Networking", "Travel"].map(
             (chip) => (
               <button
                 key={chip}
                 type="button"
                 onClick={() => setText(text ? `${text} ${chip}` : chip)}
-                className="rounded-full border border-input bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:border-primary hover:bg-accent"
+                className="rounded-lg border border-input bg-background px-2.5 py-1 text-[13px] text-foreground transition-colors hover:border-primary hover:bg-accent"
               >
                 {chip}
               </button>
             ),
           )}
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder='e.g. "learn tabla with someone this month"'
             maxLength={280}
-            className="w-full flex-1 rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
+            className="w-full flex-1 rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-primary"
           />
           <button
             type="submit"
             disabled={busy}
-            className="rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-60"
+            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-60"
           >
             {busy ? "Matching…" : "Declare"}
           </button>
         </div>
       </form>
 
-      <section className="mt-10">
+      <section className="mt-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-foreground">Live intents</h2>
+          <h2 className="text-lg font-bold text-foreground">Live intents</h2>
           <span className="font-mono-label text-sm text-muted-foreground">
             {intents.length} active
           </span>
         </div>
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-3 space-y-1.5">
           {intents.length === 0 && (
             <li className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
               <p className="mb-4 text-sm">No live intents yet. Try one of these:</p>
@@ -337,7 +337,7 @@ function AppPage() {
           {intents.map((i, idx) => (
             <li
               key={i.id}
-              className={`animate-fade-in flex items-start gap-4 rounded-xl border bg-card px-4 py-3.5 transition-colors ${
+              className={`animate-fade-in flex items-start gap-3 rounded-lg border bg-card px-3.5 py-2.5 text-sm transition-colors ${
                 i.actor_id === actor.id ? "border-primary" : "border-border"
               }`}
               style={{ animationDelay: `${idx * 40}ms` }}

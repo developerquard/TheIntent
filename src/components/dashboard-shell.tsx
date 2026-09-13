@@ -49,13 +49,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         onMouseLeave={() => setExpanded(false)}
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-sidebar-border bg-sidebar shadow-xl transition-[width] duration-300 ease-out",
-          expanded ? "w-64" : "w-[72px]",
+          expanded ? "w-56" : "w-16",
         )}
       >
         {/* Logo area */}
-        <div className="flex h-16 items-center gap-3 overflow-hidden px-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md transition-transform duration-300 hover:rotate-6">
-            <Zap className="h-5 w-5" />
+        <div className="flex h-14 items-center gap-3 overflow-hidden px-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md transition-transform duration-300 hover:rotate-6">
+            <Zap className="h-4.5 w-4.5" />
           </div>
           <span
             className={cn(
@@ -77,7 +77,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+                  "group relative flex items-center gap-3 overflow-hidden rounded-lg px-2.5 py-2.5 text-[13px] font-medium transition-all duration-200",
                   active
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
@@ -104,9 +104,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* User + sign out */}
-        <div className="border-t border-sidebar-border p-3">
-          <div className="flex items-center gap-3 overflow-hidden rounded-xl px-2 py-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+        <div className="border-t border-sidebar-border p-2.5">
+          <div className="flex items-center gap-2.5 overflow-hidden rounded-lg px-1.5 py-1.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
               {actor.label ? actor.label[0].toUpperCase() : "•"}
             </div>
             <div
@@ -145,7 +145,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Content */}
-      <main className="min-h-screen pl-[72px] pr-[72px]">{children}</main>
+      <main className="min-h-screen pl-16 pr-10">{children}</main>
     </div>
   );
 }
