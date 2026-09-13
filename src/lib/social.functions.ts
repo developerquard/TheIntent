@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   evaluateIntentPolicy,
   computeIntentSimilarity,
@@ -12,6 +13,7 @@ const DeclareInput = z.object({
   actorId: z.string().min(3).max(64),
   actorLabel: z.string().min(1).max(24),
   text: z.string().min(1).max(280),
+  candidateIntentId: z.string().uuid().optional(),
 });
 
 const MessageInput = z.object({
@@ -108,8 +110,10 @@ async function appendAudit(
 }
 
 export const declareIntent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => DeclareInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.actorId !== context.userId) throw new Error("Unauthorized actor");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -156,14 +160,21 @@ export const declareIntent = createServerFn({ method: "POST" })
       payload: { text },
     });
 
-    const { data: candidates } = await admin
+    let candidateQuery = admin
       .from("intents")
       .select("id, actor_id, actor_label, intent_text")
       .eq("status", "active")
       .is("room_id", null)
+      .gt("expires_at", new Date().toISOString())
       .neq("actor_id", data.actorId)
-      .order("created_at", { ascending: true })
-      .limit(50);
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (data.candidateIntentId) {
+      candidateQuery = candidateQuery.eq("id", data.candidateIntentId);
+    }
+
+    const { data: candidates } = await candidateQuery;
 
     let best: {
       id: string;
@@ -183,39 +194,22 @@ export const declareIntent = createServerFn({ method: "POST" })
       const tags = deriveTags(text, best.intent_text);
       const topic = tags.join(" · ") || "shared intent";
 
-      const { data: room } = await admin
-        .from("rooms")
-        .insert({
-          topic,
-          tags,
-          intent_hash: intentHash,
-          member_ids: [best.actor_id, data.actorId],
-          member_labels: [best.actor_label, data.actorLabel],
-          decision: "ALLOW",
-          match_similarity: best.score,
-          status: "open",
-        })
-        .select("id")
-        .single();
-
-      if (!room) throw new Error("Failed to create room");
-      const roomId = room.id as string;
-
-      // Insert my intent already matched, and mark the candidate matched.
-      await admin.from("intents").insert({
-        actor_id: data.actorId,
-        actor_label: data.actorLabel,
-        intent_text: text,
-        intent_hash: intentHash,
-        decision: "ALLOW",
-        status: "matched",
-        room_id: roomId,
-        match_similarity: best.score,
+      const { data: matchRows, error: matchError } = await admin.rpc("create_intent_match", {
+        p_actor_id: data.actorId,
+        p_actor_label: data.actorLabel,
+        p_intent_text: text,
+        p_intent_hash: intentHash,
+        p_candidate_id: best.id,
+        p_topic: topic,
+        p_tags: tags,
+        p_similarity: best.score,
       });
-      await admin
-        .from("intents")
-        .update({ status: "matched", room_id: roomId, match_similarity: best.score })
-        .eq("id", best.id);
+
+      if (matchError) {
+        throw new Error(matchError.message);
+      }
+      const roomId = (Array.isArray(matchRows) ? matchRows[0]?.room_id : matchRows?.room_id) as string | undefined;
+      if (!roomId) throw new Error("Candidate was claimed by another match");
 
       await appendAudit(admin, {
         event_type: "match_evaluated",
@@ -223,15 +217,6 @@ export const declareIntent = createServerFn({ method: "POST" })
         intent_hash: intentHash,
         room_id: roomId,
         payload: { similarity: best.score, threshold: MATCH_THRESHOLD },
-      });
-
-      // Seed a system message so the room is alive on arrival.
-      await admin.from("room_messages").insert({
-        room_id: roomId,
-        sender_id: "system",
-        sender_label: "policy engine",
-        role: "system",
-        content: `Room formed · ${topic} · decision ALLOW · similarity ${best.score}`,
       });
 
       return {
@@ -263,8 +248,10 @@ export const declareIntent = createServerFn({ method: "POST" })
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => MessageInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.senderId !== context.userId) throw new Error("Unauthorized sender");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -294,10 +281,19 @@ export const sendMessage = createServerFn({ method: "POST" })
   });
 
 export const leaveRoom = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ roomId: z.string().uuid(), actorId: z.string() }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.actorId !== context.userId) throw new Error("Unauthorized actor");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
+
+    const { data: room } = await admin
+      .from("rooms")
+      .select("member_ids")
+      .eq("id", data.roomId)
+      .single();
+    if (!room?.member_ids.includes(context.userId)) throw new Error("Not a member of this room");
 
     await admin
       .from("rooms")
@@ -325,8 +321,10 @@ export const joinWaitlist = createServerFn({ method: "POST" })
   });
 
 export const createCollaborationRoom = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => CreateCollaborationRoomInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.actorId !== context.userId) throw new Error("Unauthorized actor");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -409,6 +407,7 @@ export const createCollaborationRoom = createServerFn({ method: "POST" })
   });
 
 export const getCollaborationRooms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ intentHash: z.string() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -437,8 +436,10 @@ export const getCollaborationRooms = createServerFn({ method: "POST" })
   });
 
 export const requestJoinRoom = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => RequestJoinRoomInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.actorId !== context.userId) throw new Error("Unauthorized actor");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -501,8 +502,10 @@ export const requestJoinRoom = createServerFn({ method: "POST" })
   });
 
 export const handleJoinRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => HandleJoinRequestInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.actorId !== context.userId) throw new Error("Unauthorized actor");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -621,8 +624,10 @@ export const handleJoinRequest = createServerFn({ method: "POST" })
   });
 
 export const getNotifications = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ userId: z.string() }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.userId !== context.userId) throw new Error("Unauthorized user");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -639,19 +644,26 @@ export const getNotifications = createServerFn({ method: "POST" })
   });
 
 export const markNotificationRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ notificationId: z.string().uuid() }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
-    await admin.from("notifications").update({ is_read: true }).eq("id", data.notificationId);
+    await admin
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", data.notificationId)
+      .eq("user_id", context.userId);
 
     return { success: true };
   });
 
 export const checkIntentSimilarity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => CheckSimilarityInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (data.actorId !== context.userId) throw new Error("Unauthorized actor");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -663,9 +675,10 @@ export const checkIntentSimilarity = createServerFn({ method: "POST" })
       .select("id, actor_id, actor_label, intent_text")
       .eq("status", "active")
       .is("room_id", null)
+      .gt("expires_at", new Date().toISOString())
       .neq("actor_id", data.actorId)
-      .order("created_at", { ascending: true })
-      .limit(50);
+      .order("created_at", { ascending: false })
+      .limit(200);
 
     const matches: Array<{
       id: string;

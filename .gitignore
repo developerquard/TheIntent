@@ -38,6 +38,7 @@ dist-ssr
 
 # Temporary files
 build.log
+supabase/.temp/
 
 # Env files
 .env

@@ -56,6 +56,7 @@ export type Database = {
           actor_label: string;
           created_at: string;
           decision: string;
+          expires_at: string;
           flags: Json;
           id: string;
           intent_hash: string;
@@ -70,6 +71,7 @@ export type Database = {
           actor_label: string;
           created_at?: string;
           decision?: string;
+          expires_at?: string;
           flags?: Json;
           id?: string;
           intent_hash: string;
@@ -84,6 +86,7 @@ export type Database = {
           actor_label?: string;
           created_at?: string;
           decision?: string;
+          expires_at?: string;
           flags?: Json;
           id?: string;
           intent_hash?: string;
@@ -204,7 +207,19 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      create_intent_match: {
+        Args: {
+          p_actor_id: string;
+          p_actor_label: string;
+          p_candidate_id: string;
+          p_intent_hash: string;
+          p_intent_text: string;
+          p_similarity: number;
+          p_tags: string[];
+          p_topic: string;
+        };
+        Returns: { room_id: string }[];
+      };
     };
     Enums: {
       [_ in never]: never;

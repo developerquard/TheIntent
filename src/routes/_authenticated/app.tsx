@@ -210,9 +210,14 @@ function AppPage() {
     setBusy(true);
     setShowMatchingModal(false);
     try {
-      // Force match with selected intent by calling declareIntent with a modified approach
-      // We'll need to modify the backend to support forced matching, but for now let's proceed with normal declaration
-      const res = await declare({ data: { actorId: actor.id, actorLabel: actor.label, text } });
+      const res = await declare({
+        data: {
+          actorId: actor.id,
+          actorLabel: actor.label,
+          text,
+          candidateIntentId: matchId,
+        },
+      });
       await loadFeed();
       if (res.matched && "roomId" in res) {
         playMatchSound();
