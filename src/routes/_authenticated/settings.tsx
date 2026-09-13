@@ -109,7 +109,7 @@ function SettingsPage() {
                 key={opt.value}
                 onClick={() => setTheme(opt.value)}
                 className={cn(
-                  "group relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5",
+                  "group relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors duration-200",
                   active
                     ? "border-primary bg-primary/10 shadow-sm"
                     : "border-border bg-background hover:border-primary/50",
@@ -192,7 +192,7 @@ function SettingsPage() {
               />
               <button
                 onClick={() => ringtoneInputRef.current?.click()}
-                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
               >
                 <Upload className="h-4 w-4" />
                 Upload ringtone
@@ -200,7 +200,7 @@ function SettingsPage() {
               {customRingtone && (
                 <button
                   onClick={playRingtone}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
                 >
                   <Play className="h-4 w-4" />
                   Preview
@@ -224,7 +224,7 @@ function SettingsPage() {
               />
               <button
                 onClick={() => matchSoundInputRef.current?.click()}
-                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
               >
                 <Upload className="h-4 w-4" />
                 Upload match sound
@@ -232,7 +232,7 @@ function SettingsPage() {
               {customMatchSound && (
                 <button
                   onClick={playMatchSound}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-all hover:bg-accent active:scale-95"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
                 >
                   <Play className="h-4 w-4" />
                   Preview
@@ -293,14 +293,14 @@ function ToggleRow({
         aria-label={title}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
+          "relative h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           checked ? "bg-primary" : "bg-muted",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform duration-200",
-            checked ? "translate-x-[22px]" : "translate-x-0.5",
+            "block h-5 w-5 rounded-full bg-background shadow-sm transition-transform duration-200 ease-out",
+            checked ? "translate-x-5" : "translate-x-0",
           )}
         />
       </button>
