@@ -33,7 +33,13 @@ interface NotificationItem {
   created_at: string;
 }
 
-function NotificationBell() {
+export function NotificationBell({
+  inSidebar = false,
+  expanded = false,
+}: {
+  inSidebar?: boolean;
+  expanded?: boolean;
+}) {
   const { user } = useAuth();
   const { soundCues, customMatchSound } = useAccessibility();
   const getNotifs = useServerFn(getNotifications);
@@ -117,9 +123,16 @@ function NotificationBell() {
       <button
         onClick={() => setShowNotifications(!showNotifications)}
         aria-label="Notifications"
-        className="relative rounded-xl border border-border p-2.5 text-foreground transition-all hover:bg-accent active:scale-95"
+        className={`relative flex items-center gap-3 rounded-lg text-foreground transition-all hover:bg-accent active:scale-95 ${
+          inSidebar
+            ? "w-full px-2.5 py-2.5 text-[13px] font-medium"
+            : "border border-border p-2.5"
+        }`}
       >
-        <Bell className="h-4 w-4" />
+        <Bell className={inSidebar ? "h-5 w-5 shrink-0" : "h-4 w-4"} />
+        {inSidebar && (
+          <span className={expanded ? "whitespace-nowrap" : "sr-only"}>Notifications</span>
+        )}
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -130,7 +143,11 @@ function NotificationBell() {
       {showNotifications && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-          <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-2xl border border-border bg-card p-4 shadow-lg">
+          <div
+            className={`absolute top-full z-50 mt-2 w-80 rounded-xl border border-border bg-card p-3 shadow-lg ${
+              inSidebar ? "left-0" : "right-0"
+            }`}
+          >
             <h3 className="mb-3 text-sm font-semibold text-foreground">Notifications</h3>
             {notifications.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">No notifications</p>
@@ -209,7 +226,6 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          {user && <NotificationBell />}
           {!loading &&
             (user ? (
               <Link

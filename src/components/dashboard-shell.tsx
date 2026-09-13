@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, actorFromUser } from "@/lib/use-auth";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/site-header";
 
 type NavItem = {
   label: string;
@@ -101,6 +102,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          {user && <NotificationBell inSidebar expanded={expanded} />}
         </nav>
 
         {/* User + sign out */}
