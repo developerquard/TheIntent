@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "sonner";
 import { ThemeProvider, themeBootScript } from "@/lib/use-theme";
 import { AccessibilityProvider } from "@/lib/use-accessibility.tsx";
-import { InteractiveBackdrop } from "@/components/interactive-backdrop";
+import { Interactive3DBackdrop } from "@/components/interactive-3d-backdrop";
 
 function NotFoundComponent() {
   return (
@@ -148,7 +148,7 @@ function RootComponent() {
     <ThemeProvider>
       <AccessibilityProvider>
         <QueryClientProvider client={queryClient}>
-          <InteractiveBackdrop />
+          <Interactive3DBackdrop />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <Toaster position="top-center" richColors />

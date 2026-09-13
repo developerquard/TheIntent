@@ -144,23 +144,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Dim/blur overlay when sidebar is expanded */}
-      <div
-        className={cn(
-          "pointer-events-none fixed inset-0 z-30 bg-background/30 backdrop-blur-[2px] transition-opacity duration-300",
-          expanded ? "opacity-100" : "opacity-0",
-        )}
-      />
-
       {/* Content */}
-      <main
-        className={cn(
-          "min-h-screen pl-[72px] pr-[72px] transition-all duration-300",
-          expanded && "pl-[256px] pr-[256px] blur-[1.5px]",
-        )}
-      >
-        {children}
-      </main>
+      <main className="min-h-screen pl-[72px] pr-[72px]">{children}</main>
     </div>
   );
 }

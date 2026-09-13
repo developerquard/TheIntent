@@ -192,7 +192,14 @@ export function Interactive3DBackdrop() {
         mesh.position.copy(pos);
         mesh.rotation.x += 0.005;
         mesh.rotation.y += 0.007;
+
+        const pulse = 1 + Math.sin(elapsedTime * 1.4 + i * 0.7) * 0.08;
+        mesh.scale.setScalar(pulse);
       }
+
+      nodesGroup.rotation.y = Math.sin(elapsedTime * 0.12) * 0.08;
+      nodesGroup.rotation.x = Math.cos(elapsedTime * 0.1) * 0.04;
+      camera.position.z = 45 + Math.sin(elapsedTime * 0.18) * 1.2;
 
       // Update node connection lines
       let vertexIdx = 0;
@@ -242,6 +249,7 @@ export function Interactive3DBackdrop() {
 
       // Rotate particle background slow
       particles.rotation.y = elapsedTime * 0.02;
+      particles.rotation.x = Math.sin(elapsedTime * 0.08) * 0.04;
 
       renderer.render(scene, camera);
     };
