@@ -36,9 +36,11 @@ interface NotificationItem {
 export function NotificationBell({
   inSidebar = false,
   expanded = false,
+  page = false,
 }: {
   inSidebar?: boolean;
   expanded?: boolean;
+  page?: boolean;
 }) {
   const { user } = useAuth();
   const { soundCues, customMatchSound } = useAccessibility();
@@ -118,8 +120,98 @@ export function NotificationBell({
 
   if (!user) return null;
 
+  if (page) {
+    return (
+      <section className="animate-fade-in mx-auto w-full max-w-4xl">
+        <div className="flex items-end justify-between gap-4 border-b border-border pb-5">
+          <div>
+            <p className="font-mono-label text-xs font-medium uppercase text-primary">inbox</p>
+            <h1 className="mt-1 text-2xl font-bold text-foreground md:text-3xl">Notifications</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Updates about your rooms, matches, and requests.
+            </p>
+          </div>
+          <span className="font-mono-label text-xs text-muted-foreground">
+            {unreadCount} unread
+          </span>
+        </div>
+        <div className="mt-5 space-y-2">
+          {notifications.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+              <Bell className="mx-auto h-7 w-7 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium text-foreground">No notifications yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                New room requests and activity will appear here.
+              </p>
+            </div>
+          ) : (
+            notifications.map((notif) => (
+              <div
+                key={notif.id}
+                className={`rounded-lg border p-3.5 transition-colors ${
+                  notif.is_read ? "border-border bg-card" : "border-primary bg-primary/5"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{notif.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{notif.body}</p>
+                    <p className="mt-2 font-mono-label text-[11px] text-muted-foreground/70">
+                      {new Date(notif.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  {notif.type === "join_request" && (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={() => handleAction(notif.related_id, "approve", notif.id)}
+                        className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleAction(notif.related_id, "decline", notif.id)}
+                        className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-accent"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {!notif.is_read && (
+                  <button
+                    onClick={() => handleMarkRead(notif.id)}
+                    className="mt-2 text-xs text-muted-foreground hover:text-primary"
+                  >
+                    Mark as read
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="relative">
+      {inSidebar ? (
+        <Link
+          to="/notifications"
+          aria-label="Notifications"
+          className={`relative flex items-center gap-3 rounded-lg text-foreground transition-all hover:bg-accent active:scale-95 ${
+            inSidebar ? "w-full px-2.5 py-2.5 text-[13px] font-medium" : "border border-border p-2.5"
+          }`}
+        >
+          <Bell className="h-5 w-5 shrink-0" />
+          <span className={expanded ? "whitespace-nowrap" : "sr-only"}>Notifications</span>
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Link>
+      ) : (
       <button
         onClick={() => setShowNotifications(!showNotifications)}
         aria-label="Notifications"
@@ -139,6 +231,7 @@ export function NotificationBell({
           </span>
         )}
       </button>
+      )}
 
       {showNotifications && (
         <>
